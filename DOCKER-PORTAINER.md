@@ -11,6 +11,14 @@ Fork: https://github.com/hoangthang0106/qrframe
 - `.github/workflows/docker-publish.yml`: GitHub Actions build/push GHCR trên nhánh main (có thể cần bật Actions hoặc đổi quyền truy cập package sang public).
 - `.dockerignore`: bỏ thư mục không cần trong build.
 
+## Cổng đã được điều chỉnh
+
+- **Cổng máy chủ Docker (LAN): 18890**
+- **Cổng Nginx bên trong container: 18090** (không dùng 8080).
+- Mapping: `18890:18090` tại IP `192.168.20.194` mặc định.
+- Cổng 18890 chưa được kiểm chứng đang trống; thay biến `QRFRAME_LAN_PORT` nếu trùng.
+- Sau khi chỉnh code trên GitHub phải rebuild image; image cũ vẫn còn dùng 8080.
+
 ## Phương án A — Portainer build trực tiếp từ fork
 
 1. Vào **Portainer → Stacks → Add stack → Repository**.

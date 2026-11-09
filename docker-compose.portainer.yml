@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:8080"
+      - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:18090"
 
     read_only: true
     tmpfs:
