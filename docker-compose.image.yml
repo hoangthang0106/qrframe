@@ -1,0 +1,22 @@
+# Optional Portainer fallback when build-from-Git is unavailable.
+# Requires a SUCCESSFUL GitHub Actions "Publish QRFrame container" run
+# and PUBLIC read access to the ghcr.io package.
+services:
+  qrframe:
+    image: ghcr.io/hoangthang0106/qrframe:main
+    container_name: qrframe-lan
+    restart: unless-stopped
+    ports:
+      - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,noexec,size=32m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
