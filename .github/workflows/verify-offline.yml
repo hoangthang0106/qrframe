@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure no remote runtime code in secure source
+      - name: Ensure no runtime code-execution or third-party downloads
         shell: bash
         run: |
           set -eu
@@ -19,18 +19,29 @@ jobs:
           ! grep -RniE 'https://esm.sh|https://upload.wikimedia|google-analytics|googletagmanager|facebook.net' secure/
       - name: Build the secure container
         run: docker build --pull -t qrframe-offline:ci .
-      - name: Validate HTTP headers and app over local port
+      - name: Smoke-test ACTUAL Portainer Compose with isolated network
         shell: bash
+        env:
+          QRFRAME_LAN_IP: 127.0.0.1
+          QRFRAME_LAN_PORT: "18890"
         run: |
           set -eu
-          docker run -d --name qrframe-test --read-only --tmpfs /tmp:rw,nosuid,noexec,size=32m --cap-drop ALL --security-opt no-new-privileges:true -p 127.0.0.1:18890:18090 qrframe-offline:ci
+          docker compose -f docker-compose.portainer.yml config --quiet
+          docker compose -f docker-compose.portainer.yml up -d --build
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:18890/ >/dev/null; then break; fi
             sleep 1
           done
           curl --fail --silent --show-error http://127.0.0.1:18890/ | grep -q 'QRFrame Nội Bộ'
           curl --fail --silent -I http://127.0.0.1:18890/ | grep -qi "connect-src 'none'"
-          docker exec qrframe-test sh -c 'test ! -e /usr/share/nginx/html/previewWorker.js'
+          docker exec qrframe-lan sh -c 'test ! -e /usr/share/nginx/html/previewWorker.js'
+          docker exec qrframe-lan sh -c 'test ! -e /usr/share/nginx/html/thumbnailWorker.js'
+          docker exec qrframe-lan sh -c 'awk '"'"'NR>1 && $2=="00000000"{exit 1}'"'"' /proc/net/route'
+          echo 'PASS: static app, strict CSP, internal network, no default gateway'
       - name: Cleanup
         if: always()
-        run: docker rm -f qrframe-test || true
+        shell: bash
+        env:
+          QRFRAME_LAN_IP: 127.0.0.1
+          QRFRAME_LAN_PORT: "18890"
+        run: docker compose -f docker-compose.portainer.yml down --remove-orphans || true
