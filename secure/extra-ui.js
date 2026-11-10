@@ -53,6 +53,7 @@ function addField(parent, cfg) {
     node.autocomplete = "off";
     node.spellcheck = false;
   }
+  if (cfg.type === "color") node.value = "#167b62";
   if (cfg.max) node.maxLength = cfg.max;
   if (cfg.placeholder) node.placeholder = cfg.placeholder;
   label.appendChild(node);
