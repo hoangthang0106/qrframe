@@ -1,3 +1,5 @@
+import { buildExtendedPayload } from "./extra-payload.js";
+
 // Pure QR payload builders. No DOM, storage, network requests or dynamic code execution.
 // Each returned string is encoded into the QR matrix locally in the browser.
 const requireValue = (value, label) => {
@@ -175,7 +177,8 @@ export function buildPayload(kind, data = {}) {
       break;
     }
     default:
-      throw new Error("Loại mã QR không được hỗ trợ.");
+      payload = buildExtendedPayload(kind, data);
+      break;
   }
   if (new TextEncoder().encode(payload).length > 1800) {
     throw new Error("Dữ liệu quá dài để tạo mã QR ổn định. Hãy rút gọn nội dung.");
