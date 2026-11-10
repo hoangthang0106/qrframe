@@ -75,3 +75,7 @@ test("WhatsApp/Zalo hyperlinks only; no network I/O", () => {
 test("reject unsupported QR payload kind", () => {
   assert.throws(() => buildPayload("script", {script:"alert(1)"}));
 });
+
+test("Wi-Fi SSIDs containing apostrophes are not changed", () => {
+  assert.equal(buildPayload("wifi", {ssid:"John's WiFi",wifiSecurity:"nopass",hidden:"false"}), "WIFI:T:nopass;S:John's WiFi;H:false;;");
+});
