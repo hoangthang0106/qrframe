@@ -41,7 +41,7 @@ function normalizeUrl(value) {
 function wifiEscape(value) {
   const text = String(value ?? "");
   if (/[\r\n\x00]/.test(text)) throw new Error("SSID/mật khẩu không được chứa xuống dòng.");
-  return text.replace(/[\\;,:"']/g, (ch) => "\\" + ch);
+  return text.replace(/[\\;,:"]/g, (ch) => "\\" + ch);
 }
 
 function vcardEscape(value) {
