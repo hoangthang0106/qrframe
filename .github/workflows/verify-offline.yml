@@ -17,6 +17,8 @@ jobs:
           set -eu
           ! grep -RniE 'fetch[[:space:]]*\(|XMLHttpRequest|sendBeacon|WebSocket|importScripts|eval[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\(' secure/
           ! grep -RniE 'https://esm.sh|https://upload.wikimedia|google-analytics|googletagmanager|facebook.net' secure/
+      - name: Unit-test all QR input types
+        run: node --test tests/qr-payload.test.mjs
       - name: Build the secure container
         run: docker build --pull -t qrframe-offline:ci .
       - name: Smoke-test ACTUAL Portainer Compose over published TCP port
