@@ -2,9 +2,8 @@
   "name": "qrframe",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "start": "vite start",
+    "dev": "vite secure --host 127.0.0.1",
+    "build": "vite build secure --outDir ../dist-secure --emptyOutDir",
     "fmt": "oxfmt"
   },
   "dependencies": {
@@ -33,7 +32,5 @@
     "@unocss/transformer-variant-group": "^66.7.5",
     "oxfmt": "^0.58.0"
   },
-  "engines": {
-    "node": ">=18"
-  }
+  "engines": { "node": ">=22" }
 }

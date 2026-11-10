@@ -1,6 +1,5 @@
-# Optional Portainer fallback when build-from-Git is unavailable.
-# Requires a SUCCESSFUL GitHub Actions "Publish QRFrame container" run
-# and PUBLIC read access to the ghcr.io package.
+# Only use after the secured code is merged into main and GitHub Actions
+# has published a verified image. Prefer immutable digest pinning in production.
 services:
   qrframe:
     image: ghcr.io/hoangthang0106/qrframe:main
@@ -8,15 +7,21 @@ services:
     restart: unless-stopped
     ports:
       - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:18090"
+    networks:
+      - qrframe_isolated
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,noexec,size=32m
     cap_drop: [ALL]
-    security_opt:
-      - no-new-privileges:true
-    pids_limit: 100
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.50
     logging:
       driver: local
-      options:
-        max-size: "5m"
-        max-file: "2"
+      options: { max-size: "5m", max-file: "2" }
+networks:
+  qrframe_isolated:
+    driver: bridge
+    internal: true

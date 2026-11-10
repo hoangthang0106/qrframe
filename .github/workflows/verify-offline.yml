@@ -1,0 +1,36 @@
+name: Verify QRFrame secure LAN build
+on:
+  pull_request:
+  push:
+    branches: [security/offline-lan-no-exec-20261110]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure no remote runtime code in secure source
+        shell: bash
+        run: |
+          set -eu
+          ! grep -RniE 'fetch[[:space:]]*\(|XMLHttpRequest|sendBeacon|WebSocket|importScripts|eval[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\(' secure/
+          ! grep -RniE 'https://esm.sh|https://upload.wikimedia|google-analytics|googletagmanager|facebook.net' secure/
+      - name: Build the secure container
+        run: docker build --pull -t qrframe-offline:ci .
+      - name: Validate HTTP headers and app over local port
+        shell: bash
+        run: |
+          set -eu
+          docker run -d --name qrframe-test --read-only --tmpfs /tmp:rw,nosuid,noexec,size=32m --cap-drop ALL --security-opt no-new-privileges:true -p 127.0.0.1:18890:18090 qrframe-offline:ci
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18890/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent --show-error http://127.0.0.1:18890/ | grep -q 'QRFrame Nội Bộ'
+          curl --fail --silent -I http://127.0.0.1:18890/ | grep -qi "connect-src 'none'"
+          docker exec qrframe-test sh -c 'test ! -e /usr/share/nginx/html/previewWorker.js'
+      - name: Cleanup
+        if: always()
+        run: docker rm -f qrframe-test || true
