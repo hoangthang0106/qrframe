@@ -1,5 +1,6 @@
-# Only use after the secured code is merged into main and GitHub Actions
-# has published a verified image. Prefer immutable digest pinning in production.
+# Use ONLY after secure code is reviewed/merged and image successfully rebuilt.
+# In production pin ghcr.io image to a verified immutable SHA256 digest.
+# The Docker bridge isolates stacks, but host firewall must separately deny egress.
 services:
   qrframe:
     image: ghcr.io/hoangthang0106/qrframe:main
@@ -8,7 +9,7 @@ services:
     ports:
       - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:18090"
     networks:
-      - qrframe_isolated
+      - qrframe_app_net
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,noexec,size=32m
@@ -22,6 +23,5 @@ services:
       driver: local
       options: { max-size: "5m", max-file: "2" }
 networks:
-  qrframe_isolated:
+  qrframe_app_net:
     driver: bridge
-    internal: true

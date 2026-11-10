@@ -19,7 +19,7 @@ jobs:
           ! grep -RniE 'https://esm.sh|https://upload.wikimedia|google-analytics|googletagmanager|facebook.net' secure/
       - name: Build the secure container
         run: docker build --pull -t qrframe-offline:ci .
-      - name: Smoke-test ACTUAL Portainer Compose with isolated network
+      - name: Smoke-test ACTUAL Portainer Compose over published TCP port
         shell: bash
         env:
           QRFRAME_LAN_IP: 127.0.0.1
@@ -36,8 +36,7 @@ jobs:
           curl --fail --silent -I http://127.0.0.1:18890/ | grep -qi "connect-src 'none'"
           docker exec qrframe-lan sh -c 'test ! -e /usr/share/nginx/html/previewWorker.js'
           docker exec qrframe-lan sh -c 'test ! -e /usr/share/nginx/html/thumbnailWorker.js'
-          docker exec qrframe-lan sh -c 'awk '"'"'NR>1 && $2=="00000000"{exit 1}'"'"' /proc/net/route'
-          echo 'PASS: static app, strict CSP, internal network, no default gateway'
+          echo 'PASS: static app, strict CSP and published port'
       - name: Cleanup
         if: always()
         shell: bash

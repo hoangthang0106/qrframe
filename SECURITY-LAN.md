@@ -1,42 +1,37 @@
-# QRFrame — Secure LAN mode (bảo mật / riêng tư)
+# QRFrame Secure LAN — mô hình bảo mật riêng tư
 
-This fork now builds **only** \`secure/\` in the Docker image. Legacy source files and artistic user-code presets remain in Git history for reference but are **not copied** into the image or served by Nginx.
+## Đã làm trong mã nguồn
+- Dockerfile **chỉ copy \`secure/\`** để build UI tĩnh. Mã nguồn/worker/preset cũ không được đưa vào image.
+- Không còn trình chạy JavaScript tùy ý. Preview QR dựng bằng DOM SVG an toàn, không \`innerHTML\`.
+- Không dùng database, cookies, localStorage, tài khoản, API, CDN, remote font/hình hoặc analytics.
+- Frontend dùng thư viện \`furious-qr\` đóng gói tại thời điểm build, tạo QR trong bộ nhớ trình duyệt.
+- Nginx không root, read-only container, giới hạn RAM/CPU/quyền, CSP \`connect-src 'none'\`, \`script-src 'self'\`, \`worker-src 'none'\`, tắt access logs.
+- Chỉ cung cấp QR vuông / bo góc / chấm tròn, sửa lỗi cao và xuất PNG/SVG; bỏ các preset nghệ thuật cho phép chạy code.
+- Không yêu cầu dịch vụ bên thứ ba **khi đang sử dụng**; quá trình build vẫn cần tải phụ thuộc và base image.
 
-## Security / privacy guarantees within this code path
+## Điều chưa được tự động bảo vệ
 
-- Static UI only; no API, accounts, database, cookies, localStorage or telemetry.
-- No arbitrary JS / preset code editor / runtime imports / unsanitized SVG innerHTML.
-- QR data is encoded by bundled \`furious-qr\` in the user's browser memory.
-- Only the audited \`secure/\` frontend files and Nginx config are copied into the production container.
-- No remote fonts, remote images, CDN, JS analytics or dependency services at runtime.
-- SVG preview uses \`createElementNS\` and attributes with typed inputs; user text never enters HTML/SVG markup.
-- CSP denies outbound browser \`connect-src\`, workers, frames and external scripts; Nginx access logs are disabled.
-- Non-root runtime, read-only rootfs, dropped capabilities, no-new-privileges, isolated Docker network, resource limits.
+**Không có sản phẩm nào an toàn tuyệt đối.**
 
-**Not a promise of absolute security.** Build dependencies are fetched during build. Node/npm/pnpm/GitHub Actions/registry infrastructure, end-user browsers, LAN devices, router and reverse proxy are outside this app's security boundary. Vulnerabilities in \`furious-qr\`, Nginx, Docker or the OS remain possible.
+- CSP không bảo vệ khỏi MITM thay nội dung JavaScript/HTTP headers trên đường truyền HTTP. Để chống theo dõi/chèn mã trên LAN, phải dùng HTTPS nội bộ với chứng thư đáng tin, hoặc VPN cùng firewall kiểm soát.
+- Port LAN \`192.168.20.194:18890\` chỉ là cấu hình mặc định từ lịch sử, CHƯA xác minh IP thuộc Docker host nào; không phải một URL đã triển khai.
+- Docker bridge \`qrframe_app_net\` **không chặn Internet egress**. Đã thử \`internal:true\` trong CI, nhưng cấu hình đó chặn luôn cổng inbound được publish, nên không được sử dụng. **Phải chặn egress từ Docker bridge bằng firewall trên VM/Proxmox hoặc DOCKER-USER.** Không được hiểu CSP như firewall của container.
+- Mạng LAN khác VLAN, máy khách, browser extension, hệ điều hành, registry, dependency và base image vẫn có rủi ro riêng.
+- Không có xác minh runtime trên Docker VM/Proxmox thực tế; CI chỉ mô phỏng bằng GitHub-hosted runner.
 
-## Functional trade-off
+## Các bước triển khai cho môi trường Proxmox (SAU KHI review và test)
 
-This security mode supports three QR drawing styles (square, rounded, dots), two high error-correction options, colors, PNG and SVG export. **The legacy arbitrary-code editor and artistic preset catalogue are deliberately disabled.** This reduces attack surface. No dynamic/trackable QR codes.
+1. Chạy Docker trong VM/LXC riêng được harden; không cài Docker trực tiếp trên Proxmox hypervisor.
+2. Xác minh host IP thật, tên máy, hệ điều hành, VMID/CTID, và \`18890/TCP\` đang trống; không đụng QRForge port \`18889\`.
+3. Hạn chế inbound \`18890/TCP\` chỉ cho địa chỉ IP máy quản trị qua Proxmox/VM firewall; không NAT/UPnP/Cloudflare Tunnel/Internet-public.
+4. Chặn **new outbound connections** từ subnet riêng của network \`qrframe_app_net\` bằng rule trong \`DOCKER-USER\` (hoặc chính sách tương đương đã kiểm thử); phải giữ lưu lượng phản hồi đã ESTABLISHED/RELATED để ứng dụng vẫn truy cập được từ LAN. Đừng dùng CIDR đoán: lấy từ \`docker network inspect\` trên host, và kiểm thử trước khi lưu vĩnh viễn.
+5. Khuyến nghị chỉ truy cập từ VPN hoặc một reverse proxy HTTPS nội bộ có xác thực và chứng thư được tin cậy. HTTP trực tiếp trên LAN chưa đạt mức chống MITM.
+6. Sau khi merge phiên bản đã kiểm thử, Portainer → Stacks → Git repository: \`https://github.com/hoangthang0106/qrframe\`, branch \`refs/heads/main\`, Compose path \`docker-compose.portainer.yml\`. Endpoint Docker local có khả năng build từ repository. Không dùng \`docker-compose.image.yml\` trước khi ghcr.io image secure mới thật sự được build.
+7. Chạy \`docker ps\` để kiểm tra container và published port, rồi \`curl -I http://IP_DOCKER:18890/\` để xác minh CSP có \`connect-src 'none'\` (đây chỉ là phép kiểm tra chức năng trước khi cấu hình HTTPS).
+8. Dùng Browser DevTools → Network kiểm tra không có request tới tên miền bên ngoài. Kiểm tra khả năng tạo QR, quét bằng điện thoại và tải PNG/SVG.
+9. Không tự động GitOps redeploy từ upstream hoặc nhánh \`main\` cho đến khi chính sách review đã sẵn sàng; giữ image cũ để rollback.
+10. Pin image production theo SHA256 digest đã xác minh; rà soát CVE, Docker base image, Node/npm lockfile và firewall định kỳ.
 
-## Proxmox / Portainer deployment
+### Giới hạn an toàn
 
-1. Install Docker inside a dedicated Proxmox **VM** (or separately secured LXC), not on the Proxmox hypervisor itself.
-2. Verify the Docker VM/LXC actually owns LAN IP \`192.168.20.194\`; this is a configured default, not independently confirmed.
-3. Restrict the LAN application port **18890/TCP** at the VM or Proxmox firewall to named administrator client IPs only. No NAT/port-forward, no cloud tunnel, no UPnP.
-4. Validate the hardened branch with CI and review the changes **before merging**. It is not safe to redeploy an untested build.
-5. In Portainer (Docker local endpoint, if Git Stack build is supported): repository \`https://github.com/hoangthang0106/qrframe\`; branch \`refs/heads/main\` *after the audited version is merged*; Compose path \`docker-compose.portainer.yml\`. Do not use \`docker-compose.image.yml\` until the secure GHCR image is published.
-6. Host port \`18890\` is reserved for QRFrame; \`18889\` is QRForge. Port mapping is \`18890:18090\`. Check against running containers before deploying.
-7. For sensitive internal content, put the app behind authenticated HTTPS reverse proxy with internal PKI, or use a trusted VPN and firewall ACL. HTTP by itself does not encrypt LAN traffic.
-8. Test \`curl -I http://192.168.20.194:18890/\` and verify CSP has \`connect-src 'none'\`. Open Browser DevTools → Network and confirm no requests to external domains.
-9. Check the Docker internal bridge \`qrframe_isolated\` is functional with your Docker version and publish rule. If not, keep the container stopped while fixing networking. Do not silently replace it with host networking.
-
-## Updates
-
-- Build image from reviewed commit SHA; for production, pin the published image to a reviewed immutable SHA256 digest rather than a mutable \`:main\` tag.
-- Back up the previous Compose and image before any migration. Do not delete the old QRForge stack or data.
-- Do not enable automatic upstream GitOps updates; review each dependency and Docker base image update.
-- Periodically scan the final image and dependencies for vulnerabilities (e.g. Trivy, Docker Scout) on a networked **build** environment.
-- Firewall egress from the Docker VM/Proxmox guest as an additional defense-in-depth layer. Container network isolation alone does not restrict the end-user's browser.
-
-This is **a security-first redesign** intended for privately managed LANs; it trades off dynamic scripting and artistic presets for a smaller attack surface.
+Đây là **redesign ưu tiên bảo mật**. Không có remote code editor, không có QR động/tracking, không có các preset nghệ thuật cần chạy code. Các tập tin cũ còn lưu trong Git để đối chiếu nhưng không được build hoặc phục vụ trong runtime image.

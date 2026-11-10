@@ -1,5 +1,6 @@
-# Private LAN only. No public exposure, no application database, no host binds.
-# Tested branch should be reviewed before switching any existing Portainer stack.
+# Private LAN only. Port is bound to a specific host IP; the LAN firewall MUST
+# restrict clients, and host DOCKER-USER/Proxmox firewall must deny egress.
+# A private Docker bridge separates other stacks but does NOT deny internet access.
 services:
   qrframe:
     build:
@@ -11,7 +12,7 @@ services:
     ports:
       - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:18090"
     networks:
-      - qrframe_isolated
+      - qrframe_app_net
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,noexec,size=32m
@@ -29,6 +30,5 @@ services:
         max-size: "5m"
         max-file: "2"
 networks:
-  qrframe_isolated:
+  qrframe_app_net:
     driver: bridge
-    internal: true
