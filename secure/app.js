@@ -1,6 +1,8 @@
 // QRFrame Secure LAN: all payloads are built locally; no remote API, telemetry or runtime code editor.
 import { ByteEncoder, generateWithEncoder } from "furious-qr";
 import { buildPayload } from "./payload.js";
+import { registerExtraForms } from "./extra-ui.js";
+import { buildLandingHtml } from "./landing.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const QUIET_ZONE = 4;
@@ -18,6 +20,7 @@ const svgButton = el("svg");
 const pngButton = el("png");
 let current = null;
 let inputTimer = null;
+registerExtraForms();
 
 function setStatus(message, error = false) {
   statusEl.textContent = message;
@@ -75,7 +78,9 @@ function switchType() {
     form.hidden = form.dataset.type !== kindEl.value;
   }
   updateWifiPassword();
-  resetPreview("Điền thông tin để tạo mã QR.");
+  updateLandingTools();
+  resetPreview(kindEl.value === "landing"
+    ? "Tải HTML, đưa lên máy chủ nội bộ và nhập URL để tạo mã QR." : "Điền thông tin để tạo mã QR.");
   const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
   const hasInput = [...form.querySelectorAll("input,textarea")].some((item) => item.value.trim());
   if (hasInput) render();
@@ -84,6 +89,10 @@ function switchType() {
 function render() {
   const kind = kindEl.value;
   const data = getData();
+  if (kind === "landing" && !String(data.landingUrl ?? "").trim()) {
+    resetPreview("Tải Landing Page HTML → đăng lên web server/NAS → nhập URL thực tế để tạo QR.");
+    return;
+  }
   const foreground = foregroundEl.value;
   const background = backgroundEl.value;
   if (foreground.toLowerCase() === background.toLowerCase()) {
@@ -191,7 +200,39 @@ function downloadPNG() {
   canvas.toBlob((blob) => download(blob, "qrframe-" + kindEl.value + ".png"), "image/png");
 }
 
+function updateLandingTools() {
+  const active = kindEl.value === "landing";
+  const dl = el("landing-download");
+  const preview = el("landing-preview");
+  if (!active) { dl.disabled = true; preview.disabled = true; return; }
+  try {
+    buildLandingHtml(getData());
+    dl.disabled = false;
+    preview.disabled = false;
+    el("landing-notice").textContent =
+      "Có thể xuất HTML ngay. QR chỉ hoạt động sau khi đăng file lên web server và nhập URL bên trên.";
+  } catch (err) {
+    dl.disabled = true;
+    preview.disabled = true;
+    el("landing-notice").textContent = err instanceof Error ? err.message : "Chưa đủ thông tin Landing Page.";
+  }
+}
+function landingBlob() {
+  return new Blob([buildLandingHtml(getData())], { type: "text/html;charset=utf-8" });
+}
+function downloadLanding() {
+  try { download(landingBlob(), "landing-page-noi-bo.html"); }
+  catch (err) { setStatus(err instanceof Error ? err.message : "Lỗi tạo HTML.", true); }
+}
+function previewLanding() {
+  try {
+    const objectUrl = URL.createObjectURL(landingBlob());
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+  } catch (err) { setStatus(err instanceof Error ? err.message : "Lỗi xem trước.", true); }
+}
 function queueRender() {
+  updateLandingTools();
   if (inputTimer !== null) clearTimeout(inputTimer);
   inputTimer = setTimeout(render, 180);
 }
@@ -208,12 +249,16 @@ for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl]) {
   input.addEventListener("change", queueRender);
   input.addEventListener("input", queueRender);
 }
+el("landing-download").addEventListener("click", downloadLanding);
+el("landing-preview").addEventListener("click", previewLanding);
 el("clear").addEventListener("click", () => {
   if (inputTimer !== null) clearTimeout(inputTimer);
   inputTimer = null;
   for (const input of document.querySelectorAll(".type-form input, .type-form textarea")) {
     input.value = "";
   }
+  const landingColor = document.querySelector('[data-field="landingAccent"]');
+  if (landingColor) landingColor.value = "#167b62";
   for (const input of document.querySelectorAll(".type-form select")) {
     input.selectedIndex = 0;
   }
