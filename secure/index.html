@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>QRFrame Nội Bộ — An toàn & ngoại tuyến</title>
-  <meta name="description" content="Tạo mã QR trực tiếp trong trình duyệt, không thu thập dữ liệu.">
+  <title>QRFrame Nội Bộ — Tạo mã QR đa chức năng</title>
+  <meta name="description" content="Tạo mã QR cho Wi-Fi, điện thoại, danh bạ, lịch hẹn và nhiều nội dung, ngay trong trình duyệt.">
   <link rel="stylesheet" href="./style.css">
   <script type="module" src="./app.js"></script>
 </head>
@@ -14,41 +14,196 @@
   <main class="container">
     <header class="head">
       <div class="brand">▦ QRFRAME <span>NỘI BỘ</span></div>
-      <p>Tạo mã QR cục bộ trong trình duyệt · Không gửi nội dung lên máy chủ · Không CDN</p>
+      <p>Không tài khoản · Không quảng cáo, theo dõi hoặc CDN · Mã QR tạo ngay trên trình duyệt</p>
     </header>
     <div class="grid">
       <section class="panel" aria-label="Cấu hình mã QR">
-        <h1>Thiết kế mã QR</h1>
-        <label for="payload">Nội dung / đường dẫn cần mã hóa</label>
-        <textarea id="payload" maxlength="1024" rows="5" placeholder="Nhập văn bản hoặc đường dẫn nội bộ..." spellcheck="false" autocomplete="off"></textarea>
-        <p class="hint">Dữ liệu chỉ tồn tại trong bộ nhớ của trang. Không có tài khoản, lịch sử hoặc lưu trữ tự động.</p>
+        <h1>Tạo mã QR</h1>
+        <label for="kind">Loại QR cần tạo</label>
+        <select id="kind" class="type-select" aria-label="Chọn loại mã QR">
+          <option value="url">🔗 Liên kết / Website</option>
+          <option value="text">📝 Văn bản</option>
+          <option value="phone">📞 Gọi điện thoại</option>
+          <option value="wifi">📶 Kết nối Wi-Fi</option>
+          <option value="sms">💬 Tin nhắn SMS</option>
+          <option value="email">✉️ Email</option>
+          <option value="contact">👤 Danh bạ / vCard</option>
+          <option value="event">📅 Sự kiện / Lịch hẹn</option>
+          <option value="geo">📍 Vị trí GPS</option>
+          <option value="whatsapp">🟢 WhatsApp</option>
+          <option value="zalo">💠 Zalo</option>
+        </select>
+        <div class="form-stack">
+          <div class="type-form" data-type="url">
+            <label>Đường dẫn website / nội bộ
+              <input data-field="url" type="url" maxlength="1024" placeholder="https://example.com hoặc http://192.168.20.194" autocomplete="off" spellcheck="false">
+            </label>
+            <p class="hint">Hỗ trợ HTTP/HTTPS; không mở hoặc kiểm tra URL qua Internet.</p>
+          </div>
+          <div class="type-form" data-type="text" hidden>
+            <label>Văn bản
+              <textarea data-field="text" maxlength="1200" rows="5" placeholder="Nhập nội dung cần mã hóa…" spellcheck="false"></textarea>
+            </label>
+          </div>
+          <div class="type-form" data-type="phone" hidden>
+            <label>Số điện thoại
+              <input data-field="phone" type="tel" maxlength="32" placeholder="+84901234567" autocomplete="off">
+            </label>
+            <p class="hint">Điện thoại quét QR sẽ đề nghị thực hiện cuộc gọi.</p>
+          </div>
+          <div class="type-form" data-type="wifi" hidden>
+            <label>Tên Wi-Fi (SSID)
+              <input data-field="ssid" maxlength="64" placeholder="Tên mạng Wi-Fi" autocomplete="off" spellcheck="false">
+            </label>
+            <div class="fields two">
+              <label>Bảo mật
+                <select data-field="wifiSecurity">
+                  <option value="WPA">WPA/WPA2/WPA3 Personal</option>
+                  <option value="nopass">Mạng mở (không mật khẩu)</option>
+                </select>
+              </label>
+              <label>Mạng ẩn
+                <select data-field="hidden">
+                  <option value="false">Không</option>
+                  <option value="true">Có</option>
+                </select>
+              </label>
+            </div>
+            <label data-wifi-password>Mật khẩu Wi-Fi
+              <input data-field="wifiPassword" type="password" maxlength="128" autocomplete="off" placeholder="Mật khẩu Wi-Fi">
+            </label>
+            <p class="hint warning">⚠️ Mã Wi-Fi chứa mật khẩu dạng đọc được. Không chia sẻ hoặc dán mã công khai.</p>
+          </div>
+          <div class="type-form" data-type="sms" hidden>
+            <label>Số nhận SMS
+              <input data-field="smsPhone" type="tel" maxlength="32" placeholder="+84901234567" autocomplete="off">
+            </label>
+            <label>Nội dung tin nhắn (tùy chọn)
+              <textarea data-field="smsBody" maxlength="900" rows="3" placeholder="Nội dung được điền sẵn…" spellcheck="false"></textarea>
+            </label>
+          </div>
+          <div class="type-form" data-type="email" hidden>
+            <label>Địa chỉ email
+              <input data-field="email" type="email" maxlength="254" placeholder="it@example.com" autocomplete="off">
+            </label>
+            <label>Tiêu đề
+              <input data-field="subject" maxlength="200" placeholder="Yêu cầu hỗ trợ">
+            </label>
+            <label>Nội dung (tùy chọn)
+              <textarea data-field="body" rows="3" maxlength="900"></textarea>
+            </label>
+          </div>
+          <div class="type-form" data-type="contact" hidden>
+            <div class="fields two">
+              <label>Họ
+                <input data-field="lastName" maxlength="80" autocomplete="off" placeholder="Nguyễn">
+              </label>
+              <label>Tên
+                <input data-field="firstName" maxlength="80" autocomplete="off" placeholder="Văn An">
+              </label>
+            </div>
+            <div class="fields two">
+              <label>Điện thoại
+                <input data-field="contactPhone" type="tel" maxlength="32" autocomplete="off" placeholder="+84901234567">
+              </label>
+              <label>Email
+                <input data-field="contactEmail" type="email" maxlength="254" autocomplete="off" placeholder="an@example.com">
+              </label>
+            </div>
+            <div class="fields two">
+              <label>Công ty
+                <input data-field="company" maxlength="100" autocomplete="off">
+              </label>
+              <label>Chức vụ
+                <input data-field="job" maxlength="100" autocomplete="off">
+              </label>
+            </div>
+            <label>Website
+              <input data-field="contactUrl" maxlength="200" placeholder="https://example.com" autocomplete="off">
+            </label>
+            <label>Địa chỉ
+              <textarea data-field="address" rows="2" maxlength="200" spellcheck="false"></textarea>
+            </label>
+            <p class="hint">Tạo danh thiếp chuẩn vCard 3.0 để lưu danh bạ.</p>
+          </div>
+          <div class="type-form" data-type="event" hidden>
+            <label>Tên sự kiện
+              <input data-field="eventTitle" maxlength="150" placeholder="Họp bộ phận IT">
+            </label>
+            <div class="fields two">
+              <label>Bắt đầu
+                <input data-field="start" type="datetime-local">
+              </label>
+              <label>Kết thúc
+                <input data-field="end" type="datetime-local">
+              </label>
+            </div>
+            <label>Địa điểm
+              <input data-field="eventLocation" maxlength="150" placeholder="Phòng họp A">
+            </label>
+            <label>Ghi chú
+              <textarea data-field="eventDescription" maxlength="300" rows="2"></textarea>
+            </label>
+            <p class="hint">Giờ nhập theo múi giờ của thiết bị, được đổi sang UTC khi tạo dữ liệu lịch.</p>
+          </div>
+          <div class="type-form" data-type="geo" hidden>
+            <div class="fields two">
+              <label>Vĩ độ
+                <input data-field="lat" type="number" min="-90" max="90" step="any" placeholder="10.7769">
+              </label>
+              <label>Kinh độ
+                <input data-field="lon" type="number" min="-180" max="180" step="any" placeholder="106.7009">
+              </label>
+            </div>
+            <p class="hint">Mã QR sử dụng chuẩn <code>geo:</code>; không gọi dịch vụ bản đồ.</p>
+          </div>
+          <div class="type-form" data-type="whatsapp" hidden>
+            <label>Số WhatsApp (mã quốc gia, không có số 0 đầu)
+              <input data-field="waPhone" type="tel" maxlength="22" placeholder="+84901234567" autocomplete="off">
+            </label>
+            <label>Tin nhắn tùy chọn
+              <textarea data-field="waMessage" maxlength="500" rows="3"></textarea>
+            </label>
+            <p class="hint">QR chứa liên kết WhatsApp. Chỉ khi quét và mở thì ứng dụng ngoài mới được truy cập.</p>
+          </div>
+          <div class="type-form" data-type="zalo" hidden>
+            <label>Số điện thoại Zalo
+              <input data-field="zaloPhone" type="tel" maxlength="22" placeholder="0901234567" autocomplete="off">
+            </label>
+            <p class="hint">QR chứa liên kết Zalo; không tự mở kết nối trong QRFrame.</p>
+          </div>
+        </div>
+        <div class="settings-title">🎨 Tùy chỉnh mã QR</div>
         <div class="controls">
           <div><label for="shape">Kiểu hiển thị</label>
-            <select id="shape"><option value="square">Vuông tiêu chuẩn</option><option value="rounded">Bo góc</option><option value="dots">Chấm tròn (giữ ô định vị vuông)</option></select>
+            <select id="shape"><option value="square">Vuông tiêu chuẩn</option><option value="rounded">Bo góc</option><option value="dots">Chấm tròn</option></select>
           </div>
-          <div><label for="ecl">Sửa lỗi QR</label>
-            <select id="ecl"><option value="3">H — cao (khuyến nghị)</option><option value="2">Q — trung bình cao</option></select>
+          <div><label for="ecl">Mức sửa lỗi QR</label>
+            <select id="ecl"><option value="3">H — 30% (cao)</option><option value="2">Q — 25%</option><option value="1">M — 15%</option><option value="0">L — 7%</option></select>
           </div>
           <div><label for="fg">Màu mã</label><input id="fg" type="color" value="#111827" aria-label="Màu mã"></div>
           <div><label for="bg">Màu nền</label><input id="bg" type="color" value="#ffffff" aria-label="Màu nền"></div>
         </div>
-        <p class="hint">Muốn bảo mật cao, không dán mã JavaScript, URL không tin cậy hoặc dữ liệu bí mật vào QR chia sẻ công khai.</p>
+        <div class="privacy-actions">
+          <span class="hint">Không lưu nội dung hoặc mật khẩu lên server.</span>
+          <button type="button" id="clear" class="clear-button">Xóa dữ liệu nhập</button>
+        </div>
       </section>
       <section class="panel preview-panel" aria-label="Kết quả QR">
-        <h2>Xem trước</h2>
+        <div class="preview-heading"><h2>Xem trước QR</h2><span class="local-chip">CHẠY NỘI BỘ</span></div>
         <div class="canvas">
           <svg id="qr" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mã QR xem trước" viewBox="0 0 29 29" width="320" height="320"></svg>
-          <p id="empty">Nhập nội dung để tạo mã QR.</p>
+          <p id="empty">Nhập thông tin để tạo mã QR.</p>
         </div>
         <p id="status" role="status" aria-live="polite"></p>
         <div class="actions">
           <button id="svg" type="button" disabled>Tải SVG</button>
           <button id="png" type="button" disabled>Tải PNG (1024px)</button>
         </div>
-        <p class="hint">Luôn thử quét mã QR trên nhiều thiết bị trước khi in. Màu sắc và kiểu chấm có thể ảnh hưởng khả năng quét.</p>
+        <p class="hint">Luôn thử quét bằng điện thoại trước khi sử dụng. QR chứa thông tin đã mã hóa, không phải lớp mã hóa bảo mật.</p>
       </section>
     </div>
-    <footer>Không có analytics · Không dùng cookie · Không gọi dịch vụ bên thứ ba · Chỉ phục vụ trong LAN được bảo vệ</footer>
+    <footer>🔒 Không database · Không analytics · Không CDN · Không tự kết nối ra Internet · Chỉ dùng trong LAN được bảo vệ</footer>
   </main>
 </body>
 </html>

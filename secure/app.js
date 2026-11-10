@@ -1,12 +1,12 @@
-// QRFrame Secure LAN: a deliberately minimal, offline-only QR generator.
-// No arbitrary JavaScript execution, external imports, fetch, cookies, storage, or telemetry.
+// QRFrame Secure LAN: all payloads are built locally; no remote API, telemetry or runtime code editor.
 import { ByteEncoder, generateWithEncoder } from "furious-qr";
+import { buildPayload } from "./payload.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const QUIET_ZONE = 4;
 const PNG_SIZE = 1024;
 const el = (id) => document.getElementById(id);
-const payload = el("payload");
+const kindEl = el("kind");
 const shapeEl = el("shape");
 const eclEl = el("ecl");
 const foregroundEl = el("fg");
@@ -51,18 +51,53 @@ function resetPreview(message, error = false) {
   setStatus(message, error);
 }
 
-function render() {
-  const text = payload.value;
-  if (!text.trim()) {
-    resetPreview("Nhập nội dung để tạo QR.");
-    return;
+function getData() {
+  const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
+  if (!form) return {};
+  const data = {};
+  for (const input of form.querySelectorAll("[data-field]")) {
+    data[input.dataset.field] = input.value;
   }
+  return data;
+}
+
+function updateWifiPassword() {
+  const type = document.querySelector('[data-type="wifi"] [data-field="wifiSecurity"]');
+  const label = document.querySelector('[data-wifi-password]');
+  const password = document.querySelector('[data-field="wifiPassword"]');
+  const open = type.value === "nopass";
+  label.hidden = open;
+  if (open) password.value = "";
+}
+
+function switchType() {
+  for (const form of document.querySelectorAll(".type-form")) {
+    form.hidden = form.dataset.type !== kindEl.value;
+  }
+  updateWifiPassword();
+  resetPreview("Điền thông tin để tạo mã QR.");
+  const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
+  const hasInput = [...form.querySelectorAll("input,textarea")].some((item) => item.value.trim());
+  if (hasInput) render();
+}
+
+function render() {
+  const kind = kindEl.value;
+  const data = getData();
   const foreground = foregroundEl.value;
   const background = backgroundEl.value;
-  if (foreground === background) {
+  if (foreground.toLowerCase() === background.toLowerCase()) {
     resetPreview("Màu nền và màu mã phải khác nhau.", true);
     return;
   }
+  let text;
+  try {
+    text = buildPayload(kind, data);
+  } catch (err) {
+    resetPreview(err instanceof Error ? err.message : "Dữ liệu không hợp lệ.", true);
+    return;
+  }
+
   const shape = shapeEl.value;
   const ecl = Number(eclEl.value);
   try {
@@ -99,9 +134,11 @@ function render() {
     current = { qr, shape, foreground, background, fullSide };
     svgButton.disabled = false;
     pngButton.disabled = false;
-    setStatus("Mã QR tạo ngay trên máy của mày; không có yêu cầu mạng gửi nội dung.");
-  } catch (err) {
-    resetPreview("Không tạo được QR (nội dung quá dài hoặc dữ liệu không phù hợp).", true);
+    setStatus(kind === "wifi"
+      ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
+      : "QR được tạo ngay trên trình duyệt. Không gửi nội dung lên server.");
+  } catch {
+    resetPreview("Nội dung quá dài hoặc không thể tạo QR. Hãy rút gọn hoặc giảm mức sửa lỗi.", true);
   }
 }
 
@@ -120,9 +157,9 @@ function download(blob, filename) {
 
 function downloadSVG() {
   if (!current) return;
-  // All SVG elements are constructed with createElementNS; user text never enters markup.
+  // No user text is inserted as HTML/SVG markup.
   const serialized = new XMLSerializer().serializeToString(preview);
-  download(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }), "qrframe-noi-bo.svg");
+  download(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }), "qrframe-" + kindEl.value + ".svg");
 }
 
 function downloadPNG() {
@@ -151,17 +188,38 @@ function downloadPNG() {
       ctx.fillRect(px, py, unit, unit);
     }
   });
-  canvas.toBlob((blob) => download(blob, "qrframe-noi-bo.png"), "image/png");
+  canvas.toBlob((blob) => download(blob, "qrframe-" + kindEl.value + ".png"), "image/png");
 }
 
-payload.addEventListener("input", () => {
+function queueRender() {
   if (inputTimer !== null) clearTimeout(inputTimer);
-  inputTimer = setTimeout(render, 150);
-});
-for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl]) {
-  input.addEventListener("change", render);
-  input.addEventListener("input", render);
+  inputTimer = setTimeout(render, 180);
 }
+
+for (const input of document.querySelectorAll(".type-form input, .type-form textarea, .type-form select")) {
+  input.addEventListener("input", queueRender);
+  input.addEventListener("change", () => {
+    if (input.dataset.field === "wifiSecurity") updateWifiPassword();
+    queueRender();
+  });
+}
+kindEl.addEventListener("change", switchType);
+for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl]) {
+  input.addEventListener("change", queueRender);
+  input.addEventListener("input", queueRender);
+}
+el("clear").addEventListener("click", () => {
+  if (inputTimer !== null) clearTimeout(inputTimer);
+  inputTimer = null;
+  for (const input of document.querySelectorAll(".type-form input, .type-form textarea")) {
+    input.value = "";
+  }
+  for (const input of document.querySelectorAll(".type-form select")) {
+    input.selectedIndex = 0;
+  }
+  kindEl.value = "url";
+  switchType();
+});
 svgButton.addEventListener("click", downloadSVG);
 pngButton.addEventListener("click", downloadPNG);
-resetPreview("Nhập nội dung để tạo QR.");
+switchType();
