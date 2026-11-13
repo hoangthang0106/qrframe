@@ -75,10 +75,19 @@
             <div class="wifi-print-box">
               <label class="wifi-print-switch" for="wifi-show-credentials">
                 <input id="wifi-show-credentials" type="checkbox">
-                <span><strong>Hiện tên Wi-Fi và mật khẩu dưới mã QR</strong>
-                <small>Dành cho laptop không quét QR: xem hoặc nhập thủ công.</small></span>
+                <span><strong>Tự nhập thông tin hiển thị dưới mã QR</strong>
+                <small>Thông tin được in riêng, không tự sao chép từ ô cấu hình Wi-Fi ở trên.</small></span>
               </label>
-              <p class="hint warning">⚠️ Khi bật, SSID và mật khẩu sẽ hiện rõ trên hình QR, file PNG và SVG tải về. Bất kỳ ai có ảnh đều có thể đọc mật khẩu. Mặc định tắt.</p>
+              <div id="wifi-print-fields" class="wifi-print-fields" hidden>
+                <label for="wifi-print-ssid">Tên Wi-Fi muốn in dưới QR (tự nhập)
+                  <input id="wifi-print-ssid" type="text" maxlength="64" placeholder="Nhập tên muốn hiển thị" autocomplete="off" spellcheck="false">
+                </label>
+                <label for="wifi-print-password">Mật khẩu hoặc thông tin muốn in (tự nhập)
+                  <input id="wifi-print-password" type="text" maxlength="128" placeholder="Nhập nội dung muốn hiển thị" autocomplete="off" spellcheck="false">
+                </label>
+                <p class="hint">Có thể điền một hoặc cả hai ô. Nội dung in không tự thay đổi dữ liệu Wi-Fi nằm trong QR.</p>
+              </div>
+              <p class="hint warning">⚠️ Mặc định tắt. Khi bật và nhập thông tin, chữ sẽ hiện trên PNG/SVG. Nếu điền mật khẩu, mọi người có ảnh đều đọc được.</p>
             </div>
             <p class="hint warning">⚠️ Mã Wi-Fi chứa mật khẩu dạng đọc được. Không chia sẻ hoặc dán mã công khai.</p>
           </div>
@@ -201,8 +210,9 @@
               <button type="button" id="logo-remove" class="clear-button" disabled>Xóa logo</button>
               <label for="logo-size">Kích thước logo
                 <select id="logo-size">
-                  <option value="small">Nhỏ — ưu tiên quét tốt</option>
-                  <option value="medium">Vừa — tối đa 14%</option>
+                  <option value="small">Nhỏ — 16%</option>
+                  <option value="medium" selected>Vừa — 20% (khuyến nghị)</option>
+                  <option value="large">Lớn — 24% (cần quét thử)</option>
                 </select>
               </label>
             </div>
@@ -228,7 +238,7 @@
             </label>
           </div>
         </div>
-        <p class="hint warning">⚠️ Logo nằm giữa mã QR có thể làm giảm khả năng quét. Khi thêm logo, ứng dụng dùng mức sửa lỗi H. Hãy quét thử trước khi in hoặc chia sẻ.</p>
+        <p class="hint warning">⚠️ Logo đã được tăng kích thước. Logo càng lớn càng dễ làm mã khó quét, đặc biệt với QR chứa nhiều dữ liệu. Khi thêm logo, ứng dụng dùng mức sửa lỗi H. Bắt buộc quét thử trước khi in.</p>
         <div class="privacy-actions">
           <span class="hint">Không lưu nội dung hoặc mật khẩu lên server.</span>
           <button type="button" id="clear" class="clear-button">Xóa dữ liệu nhập</button>
@@ -241,7 +251,6 @@
           <p id="empty">Nhập thông tin để tạo mã QR.</p>
         </div>
         <div class="wifi-credential-preview" id="wifi-credential-preview" hidden>
-          <strong>💻 Dành cho laptop — nhập Wi-Fi thủ công</strong>
           <div><span>Tên Wi-Fi (SSID)</span><code id="wifi-ssid-preview"></code></div>
           <div><span>Mật khẩu Wi-Fi</span><code id="wifi-password-preview"></code></div>
           <p>Thông tin này cũng nằm trong file PNG/SVG khi tải xuống.</p>

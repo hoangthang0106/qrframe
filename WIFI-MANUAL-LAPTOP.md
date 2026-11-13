@@ -1,23 +1,19 @@
-# QR Wi-Fi cho người dùng laptop — xem SSID và mật khẩu dưới hình
+# QRFrame — Tự nhập chữ hiển thị dưới QR Wi-Fi
 
-## Cách sử dụng
-1. Chọn **Loại QR: Kết nối Wi-Fi**.
-2. Nhập **Tên Wi-Fi (SSID)**, kiểu bảo mật (WPA hoặc mạng mở), mật khẩu và mạng ẩn nếu có.
-3. Bật lựa chọn **“Hiện tên Wi-Fi và mật khẩu dưới mã QR”** ngay trong phần Wi-Fi.
-4. QR hiển thị kèm một phần dành cho laptop: **Tên Wi-Fi (SSID) + Mật khẩu Wi-Fi**, dưới cùng của mã. Người dùng laptop không cần dùng điện thoại quét mã: có thể xem nội dung ở phía dưới và nhập thủ công.
-5. Khi **Tải PNG (1024px)** hoặc **Tải SVG**, SSID và mật khẩu sẽ được **in ngay trong ảnh**. Có thêm khung văn bản chọn/copy được trong trang xem trước.
-6. Chọn **Xóa dữ liệu nhập** để xóa mật khẩu và tắt chức năng in mật khẩu.
+## Sử dụng
+1. Chọn **Wi-Fi**. Nhập SSID/mật khẩu thực tế vào form chính để tạo mã QR quét kết nối như bình thường.
+2. Bật **Tự nhập thông tin hiển thị dưới mã QR** (mặc định **TẮT**).
+3. Điền hai ô **Tên Wi-Fi muốn in dưới QR (tự nhập)** và/hoặc **Mật khẩu hoặc thông tin muốn in (tự nhập)**. Hai ô này **độc lập**, không tự sao chép mật khẩu của QR. Có thể điền một ô hoặc cả hai.
+4. Khi đã nhập ít nhất một ô, thông tin được hiển thị dưới mã QR trong phần xem trước và được giữ nguyên khi **Tải PNG/SVG**.
+5. Đã bỏ toàn bộ dòng **“💻 Dành cho laptop — nhập Wi-Fi thủ công”** khỏi giao diện và hình xuất. Phần bên dưới chỉ gồm nhãn SSID / thông tin và nội dung tự điền.
+6. Tắt tùy chọn hoặc chọn **Xóa dữ liệu nhập** sẽ xóa các ô thông tin muốn in để tránh vô tình lộ dữ liệu.
 
-**Mặc định chức năng in thông tin bị TẮT** nhằm tránh vô tình công khai mật khẩu Wi-Fi.
+**Lưu ý:** Hai ô in độc lập với thông tin được mã hóa trong QR; nếu tự điền sai, người dùng laptop sẽ không đăng nhập được. Hãy đối chiếu tên/mật khẩu in với thông tin Wi-Fi thực tế trước khi xuất.
 
-### Chú ý an toàn
-- Mật khẩu Wi-Fi được in **rõ ràng** dưới QR khi bật, và sẽ tồn tại bên trong file ảnh PNG/SVG. Bất kỳ ai được xem, tải, chụp hoặc in mã QR đều có thể đọc mật khẩu.
-- Phù hợp Wi-Fi **Guest**/Wi-Fi dùng cho khách, không khuyến nghị dùng cho Wi-Fi quản trị, camera, hạ tầng, nội bộ nhân sự nhạy cảm.
-- Tên và mật khẩu dùng **trực tiếp từ biểu mẫu Wi-Fi** đã nhập, không cần gõ lại. Khi đổi sang loại QR khác, khung thủ công biến mất.
-- Trường mật khẩu hỗ trợ ký tự đặc biệt và khoảng trắng, và được chia thành nhiều dòng khi quá dài. **Khi nhập thủ công, nối liền các dòng, không thêm khoảng trắng**.
-- Ứng dụng chạy trong trình duyệt và không tự gửi thông tin về server/CDN; vẫn cần HTTPS/VPN và firewall của VM/Docker host để tránh nghe lén dữ liệu trên LAN.
-- Cần quét thử mã bằng điện thoại và thử kết nối trên laptop trước khi phát cho khách hoặc in hàng loạt.
+**Bảo mật:** Không đưa mật khẩu mạng quản trị, camera, thiết bị nội bộ vào hình QR chia sẻ công khai. Nếu tự điền mật khẩu, nó sẽ hiện rõ trong ảnh PNG/SVG và người có ảnh có thể đọc được. Mọi xử lý tại trình duyệt, không upload logo/mật khẩu lên server theo mã nguồn. Cần HTTPS/VPN/firewall cho triển khai LAN.
 
-File thực hiện: `secure/index.html`, `secure/app.js`, `secure/branding.js`, `secure/style.css`, `tests/qr-branding.test.mjs`.
+## Logo lớn hơn
+Có ba mức logo: Nhỏ (16%), Vừa (20%, mặc định), Lớn (24%), đồng thời giới hạn đường kính logo tối đa 22 ô ma trận. Cỡ lớn có thể làm QR khó quét dù có sửa lỗi H. **Phải quét thử bằng điện thoại trước khi in.**
 
-**Chưa deploy lên Proxmox.** Branch `security/offline-lan-no-exec-20261110` và `docker-compose.portainer.yml`, IP/port dự kiến `192.168.20.194:18890`. Chưa merge main để tránh thay đổi các stack Docker không có xác nhận.
+## Triển khai
+Chỉnh sửa trên nhánh `security/offline-lan-no-exec-20261110` của `hoangthang0106/qrframe`. Chưa tự merge main hay thao tác Docker/Portainer trên Proxmox. Port dự kiến 18890, QRForge 18889 giữ nguyên.

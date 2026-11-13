@@ -73,3 +73,9 @@ footer{margin-top:26px;text-align:center;color:#8293aa;font-size:12px;line-heigh
 .wifi-credential-preview span{display:block;font-size:12px;color:#9ac2b1}
 .wifi-credential-preview code{display:block;padding:8px 10px;margin-top:5px;background:#0b1817;border-radius:7px;color:#f3f7ff;font-size:15px;font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
 .wifi-credential-preview p{margin:12px 0 0;font-size:11px;line-height:1.5;color:#b8d0c7}
+
+/* Editable printable Wi-Fi information, independent of QR payload. */
+.wifi-print-fields{padding:14px 0 0;border-top:1px solid #6e512a;margin-top:13px}
+.wifi-print-fields label{color:#f0ddbc;font-weight:600;margin-bottom:14px}
+.wifi-print-fields input{background:#1b1713!important;border:1px solid #755c38!important;color:#f9f5ec!important}
+.wifi-print-fields .hint{color:#d7c5a8}

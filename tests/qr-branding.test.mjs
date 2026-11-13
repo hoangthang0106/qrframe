@@ -26,17 +26,19 @@ test("brand area remains outside QR quiet zone", () => {
   assert.equal(blank.totalHeight, 41);
 });
 
-test("logo is small and centered on QR, away from finder corners", () => {
+test("enlarged logo remains centered on QR and avoids finder corners", () => {
   for (const modules of [21,25,33,57,177]) {
     const full=modules+8;
-    for (const size of ["small", "medium"]) {
+    for (const size of ["small", "medium", "large"]) {
       const g=logoGeometry(modules,full,4,size);
-      assert.ok(g.size <= modules*0.141);
+      assert.ok(g.size <= Math.min(modules*0.241,22));
+      assert.ok(g.size <= 22);
       assert.ok(g.size > 0);
       assert.ok(g.x > 4 && g.y > 4);
       assert.ok(g.x + g.size < full-4);
       assert.ok(g.y + g.size < full+4);
       assert.ok(g.bgSize > g.size);
+      if(modules === 33 && size === "medium") assert.ok(g.size > 6.5);
     }
   }
 });
@@ -66,19 +68,24 @@ test("Wi-Fi credentials panel is laid out beneath QR and preserves exact secret 
   const qrHeight=41;
   const c=wifiCredentialCard(qrHeight,41,ssid,secret,false);
   assert.ok(c.separatorY > qrHeight);
-  assert.ok(c.ssidLabelY > c.headingY);
+  assert.ok(c.ssidLabelY > qrHeight);
   assert.ok(c.passwordLabelY > c.ssidYs.at(-1));
   assert.ok(c.totalHeight > c.passwordYs.at(-1));
   assert.equal(c.ssidLines.join(""),ssid);
   assert.equal(c.passwordLines.join(""),secret); // no spaces or characters inserted/removed
-  assert.equal(c.passwordLabel,"MẬT KHẨU (NỐI LIỀN CÁC DÒNG)");
+  assert.equal(c.passwordLabel,"THÔNG TIN (NỐI LIỀN CÁC DÒNG)");
   for(const line of c.passwordLines) assert.ok(Array.from(line).length <= 24);
 });
 
-test("Open Wi-Fi prints an explicit no-password label", () => {
-  const c=wifiCredentialCard(41,41,"Guest","",true);
-  assert.deepEqual(c.passwordLines,["Không cần mật khẩu"]);
-  assert.equal(c.passwordLabel,"BẢO MẬT");
+test("Wi-Fi printable fields allow SSID only, note only, or nothing", () => {
+  assert.equal(wifiCredentialCard(41,41,"",""),null);
+  const a=wifiCredentialCard(41,41,"Guest","");
+  assert.deepEqual(a.passwordLines,[]);
+  assert.deepEqual(a.ssidLines,["Guest"]);
+  const b=wifiCredentialCard(41,41,"","Khách liên hệ lễ tân");
+  assert.deepEqual(b.ssidLines,[]);
+  assert.deepEqual(b.passwordLines,["Khách liên hệ lễ tân"]);
+  assert.equal(b.passwordLabel,"THÔNG TIN / MẬT KHẨU");
 });
 
 test("Wi-Fi visible credentials require explicit opt-in in UI and are included in both SVG and PNG paths", async () => {
@@ -86,9 +93,17 @@ test("Wi-Fi visible credentials require explicit opt-in in UI and are included i
   const html=readFileSync(new URL("../secure/index.html", import.meta.url),"utf8");
   const app=readFileSync(new URL("../secure/app.js", import.meta.url),"utf8");
   assert.match(html, /id="wifi-show-credentials" type="checkbox"/);
+  assert.match(html, /id="wifi-print-ssid"/);
+  assert.match(html, /id="wifi-print-password"/);
+  assert.doesNotMatch(html, /💻 Dành cho laptop — nhập Wi-Fi thủ công/);
+  assert.doesNotMatch(html, /id="wifi-print-ssid"[^>]+value=/);
+  assert.doesNotMatch(html, /id="wifi-print-password"[^>]+value=/);
   assert.doesNotMatch(html, /id="wifi-show-credentials"[^>]*checked/);
   assert.match(app, /kind === "wifi" && wifiOptInEl.checked/);
+  assert.match(app, /wifiPrintSsid\.value, wifiPrintPassword\.value/);
+  assert.doesNotMatch(app, /String\(data\.wifiPassword \?\? ""\), data\.wifiSecurity/);
   assert.match(app, /wifiCard\.passwordLines\.forEach/g);
   assert.match(app, /el\("wifi-password-preview"\)\.textContent/);
   assert.match(app, /wifiOptInEl\.checked = false/);
+  assert.doesNotMatch(app, /wifiCard\.heading/);
 });

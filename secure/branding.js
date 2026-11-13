@@ -34,9 +34,10 @@ export function brandLayout(side, options = {}) {
   };
 }
 
-export function logoGeometry(side, fullSide, top = 0, sizeChoice = "small") {
-  const ratio = sizeChoice === "medium" ? 0.14 : 0.105;
-  const size = Math.min(side * ratio, 7.5);
+export function logoGeometry(side, fullSide, top = 0, sizeChoice = "medium") {
+  // Increased visible logo size; cap large/dense matrices to reduce damage.
+  const ratio = sizeChoice === "large" ? 0.24 : sizeChoice === "small" ? 0.16 : 0.20;
+  const size = Math.min(side * ratio, 22);
   const centerX = fullSide / 2;
   const centerY = top + fullSide / 2;
   const pad = Math.max(0.35, size * 0.11);
@@ -109,34 +110,39 @@ export function readableTextSize(text, side, preferred = 2.0) {
 }
 
 
-// Optional Wi-Fi hand-entry panel beneath a QR image.
-// No credentials are stored or sent anywhere; the caller must explicitly opt in.
-// Split long passwords without adding spaces; each next line is a continuation.
-export function wifiCredentialCard(baseHeight, side, ssid, password, isOpen = false) {
+// Manual, opt-in printed Wi-Fi information, kept distinct from encoded QR credentials.
+// No automatic copying. Preserve every typed character, including whitespace.
+export function wifiCredentialCard(baseHeight, side, displaySsid, displayPassword) {
   const split = (value, limit = 24) => {
     const chars = Array.from(String(value ?? ""));
-    const result = [];
-    for (let offset = 0; offset < chars.length; offset += limit) {
-      result.push(chars.slice(offset, offset + limit).join(""));
-    }
-    return result.length ? result : [""];
+    const rows = [];
+    for (let i = 0; i < chars.length; i += limit) rows.push(chars.slice(i, i + limit).join(""));
+    return rows;
   };
-  const ssidLines = split(ssid);
-  const passwordLines = isOpen ? ["Không cần mật khẩu"] : split(password);
+  const ssidLines = split(displaySsid);
+  const passwordLines = split(displayPassword);
+  if (!ssidLines.length && !passwordLines.length) return null;
   const lineHeight = 2.35;
-  const headingY = baseHeight + 3.5;
-  const ssidLabelY = headingY + 3.2;
-  const ssidYs = ssidLines.map((_, i) => ssidLabelY + 2.5 + i * lineHeight);
-  const passwordLabelY = ssidYs.at(-1) + 3.0;
-  const passwordYs = passwordLines.map((_, i) => passwordLabelY + 2.5 + i * lineHeight);
+  let cursor = baseHeight + 2.3;
+  let ssidLabelY = 0;
+  let passwordLabelY = 0;
+  const ssidYs = [];
+  const passwordYs = [];
+  if (ssidLines.length) {
+    ssidLabelY = cursor + 1.8;
+    cursor = ssidLabelY + 2.5;
+    for (const line of ssidLines) { ssidYs.push(cursor); cursor += lineHeight; }
+  }
+  if (passwordLines.length) {
+    passwordLabelY = cursor + 1.8;
+    cursor = passwordLabelY + 2.5;
+    for (const line of passwordLines) { passwordYs.push(cursor); cursor += lineHeight; }
+  }
   return {
-    heading: "DÀNH CHO LAPTOP — NHẬP THỦ CÔNG",
-    headingY, ssidLabelY, ssidLines, ssidYs,
-    passwordLabel: isOpen ? "BẢO MẬT" :
-      (passwordLines.length > 1 ? "MẬT KHẨU (NỐI LIỀN CÁC DÒNG)" : "MẬT KHẨU WI-FI"),
+    ssidLabelY, ssidLines, ssidYs,
+    passwordLabel: passwordLines.length > 1 ? "THÔNG TIN (NỐI LIỀN CÁC DÒNG)" : "THÔNG TIN / MẬT KHẨU",
     passwordLabelY, passwordLines, passwordYs,
     separatorY: baseHeight + 1.35,
-    totalHeight: passwordYs.at(-1) + 3.0,
-    side
+    totalHeight: cursor + 0.6, side
   };
 }

@@ -6,7 +6,7 @@ Trang `qrframe` trong nhánh `security/offline-lan-no-exec-20261110` có mục *
 
 1. **Đính kèm logo** từ máy tính: PNG, JPEG, WebP tối đa 2 MB, chiều rộng/cao tối đa 4096 px.
 2. **Xóa logo** không cần làm mới trang.
-3. **Kích thước logo**: Nhỏ (10,5%) hoặc Vừa (14% bề rộng khối QR); đặt giữa, có nền trống xung quanh. Chỉ hỗ trợ ảnh raster; từ chối SVG/GIF.
+3. **Kích thước logo**: Nhỏ (16%), Vừa (20%, mặc định), Lớn (24% bề rộng khối QR), có trần kích thước tối đa 22 ô ma trận; đặt giữa, có nền trống xung quanh. Logo lớn có thể gây lỗi quét, phải quét thử; ảnh raster, không nhận SVG/GIF.
 4. **Tiêu đề phía trên mã QR**: ví dụ `CÔNG TY ABC`, tối đa 40 ký tự.
 5. **Chữ ngay dưới mã**: `SCAN ME`, `QUÉT MÃ`, tùy chỉnh hoặc không hiển thị.
 6. **Thông tin phụ**: dòng thứ hai dưới QR (ví dụ `Hotline 090…`), tối đa 54 ký tự.
