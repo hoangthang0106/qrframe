@@ -58,3 +58,18 @@ footer{margin-top:26px;text-align:center;color:#8293aa;font-size:12px;line-heigh
 .brand-copy-wrap label{margin-bottom:14px}
 .branding-grid .hint{margin-bottom:0}
 @media(max-width:800px){.branding-grid{grid-template-columns:1fr}}
+
+/* Opt-in printed Wi-Fi credentials: visible on exported QR and readable in browser. */
+.wifi-print-box{border:1px solid #916a2e;background:#281e15;border-radius:11px;padding:14px 15px;margin:15px 0}
+.wifi-print-switch{display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin:0}
+.wifi-print-switch input[type=checkbox]{flex:none;width:19px;height:19px;margin:2px 0 0;accent-color:#47b992}
+.wifi-print-switch span{min-width:0}
+.wifi-print-switch strong{display:block;font-size:14px;color:#f8edd4;line-height:1.45}
+.wifi-print-switch small{display:block;font-size:12px;color:#d0b78d;font-weight:400;margin-top:4px;line-height:1.55}
+.wifi-print-box .hint{margin:10px 0 0}
+.wifi-credential-preview{background:#182b2a;border:1px solid #387e68;border-radius:12px;text-align:left;padding:16px;margin-top:15px}
+.wifi-credential-preview>strong{color:#a8f1cf;font-size:14px;display:block;margin-bottom:12px}
+.wifi-credential-preview>div{margin-top:9px}
+.wifi-credential-preview span{display:block;font-size:12px;color:#9ac2b1}
+.wifi-credential-preview code{display:block;padding:8px 10px;margin-top:5px;background:#0b1817;border-radius:7px;color:#f3f7ff;font-size:15px;font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+.wifi-credential-preview p{margin:12px 0 0;font-size:11px;line-height:1.5;color:#b8d0c7}

@@ -72,6 +72,14 @@
             <label data-wifi-password>Mật khẩu Wi-Fi
               <input data-field="wifiPassword" type="password" maxlength="128" autocomplete="off" placeholder="Mật khẩu Wi-Fi">
             </label>
+            <div class="wifi-print-box">
+              <label class="wifi-print-switch" for="wifi-show-credentials">
+                <input id="wifi-show-credentials" type="checkbox">
+                <span><strong>Hiện tên Wi-Fi và mật khẩu dưới mã QR</strong>
+                <small>Dành cho laptop không quét QR: xem hoặc nhập thủ công.</small></span>
+              </label>
+              <p class="hint warning">⚠️ Khi bật, SSID và mật khẩu sẽ hiện rõ trên hình QR, file PNG và SVG tải về. Bất kỳ ai có ảnh đều có thể đọc mật khẩu. Mặc định tắt.</p>
+            </div>
             <p class="hint warning">⚠️ Mã Wi-Fi chứa mật khẩu dạng đọc được. Không chia sẻ hoặc dán mã công khai.</p>
           </div>
           <div class="type-form" data-type="sms" hidden>
@@ -231,6 +239,12 @@
         <div class="canvas">
           <svg id="qr" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mã QR xem trước" viewBox="0 0 29 29" width="320" height="320"></svg>
           <p id="empty">Nhập thông tin để tạo mã QR.</p>
+        </div>
+        <div class="wifi-credential-preview" id="wifi-credential-preview" hidden>
+          <strong>💻 Dành cho laptop — nhập Wi-Fi thủ công</strong>
+          <div><span>Tên Wi-Fi (SSID)</span><code id="wifi-ssid-preview"></code></div>
+          <div><span>Mật khẩu Wi-Fi</span><code id="wifi-password-preview"></code></div>
+          <p>Thông tin này cũng nằm trong file PNG/SVG khi tải xuống.</p>
         </div>
         <p id="status" role="status" aria-live="polite"></p>
         <div class="actions">

@@ -3,7 +3,7 @@ import { ByteEncoder, generateWithEncoder } from "furious-qr";
 import { buildPayload } from "./payload.js";
 import { registerExtraForms } from "./extra-ui.js";
 import { buildLandingHtml } from "./landing.js";
-import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine } from "./branding.js";
+import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine, wifiCredentialCard } from "./branding.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const QUIET_ZONE = 4;
@@ -24,6 +24,7 @@ let inputTimer = null;
 let logoState = null;
 let logoRequest = 0;
 registerExtraForms();
+const wifiOptInEl = el("wifi-show-credentials");
 const logoFileEl = el("logo-file");
 const logoSizeEl = el("logo-size");
 function brandOptions() {
@@ -112,6 +113,10 @@ function resetPreview(message, error = false) {
   empty.style.display = "block";
   svgButton.disabled = true;
   pngButton.disabled = true;
+  const manual = el("wifi-credential-preview");
+  manual.hidden = true;
+  el("wifi-ssid-preview").textContent = "";
+  el("wifi-password-preview").textContent = "";
   setStatus(message, error);
 }
 
@@ -143,7 +148,7 @@ function switchType() {
   resetPreview(kindEl.value === "landing"
     ? "Tải HTML, đưa lên máy chủ nội bộ và nhập URL để tạo mã QR." : "Điền thông tin để tạo mã QR.");
   const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
-  const hasInput = [...form.querySelectorAll("input,textarea")].some((item) => item.value.trim());
+  const hasInput = [...form.querySelectorAll("input,textarea")].some((item) => item.type !== "checkbox" && item.value.trim());
   if (hasInput) render();
 }
 
@@ -182,9 +187,14 @@ function render() {
     const side = qr.version * 4 + 17;
     const fullSide = side + QUIET_ZONE * 2;
     const layout = brandLayout(fullSide, brandOptions());
+    const wifiCard = kind === "wifi" && wifiOptInEl.checked
+      ? wifiCredentialCard(layout.totalHeight, fullSide, String(data.ssid ?? "").trim(),
+        String(data.wifiPassword ?? ""), data.wifiSecurity === "nopass")
+      : null;
+    const fullHeight = wifiCard ? wifiCard.totalHeight : layout.totalHeight;
     const fragment = document.createDocumentFragment();
     fragment.appendChild(createSvgNode("rect", {
-      x: 0, y: 0, width: fullSide, height: layout.totalHeight, fill: background,
+      x: 0, y: 0, width: fullSide, height: fullHeight, fill: background,
     }));
     forEachDarkModule(qr, (x, y, finder) => {
       const px = x + QUIET_ZONE;
@@ -214,15 +224,50 @@ function render() {
     appendBrandLabel(fragment, layout.title, layout.titleY, 2.35, true, foreground, fullSide);
     appendBrandLabel(fragment, layout.caption, layout.captionY, 2.3, true, foreground, fullSide);
     appendBrandLabel(fragment, layout.note, layout.noteY, 1.35, false, foreground, fullSide);
+    if (wifiCard) {
+      fragment.appendChild(createSvgNode("line", {
+        x1: 2.4, y1: wifiCard.separatorY, x2: fullSide - 2.4,
+        y2: wifiCard.separatorY, stroke: foreground, "stroke-width": 0.055
+      }));
+      function wifiLine(value, y, fontSize = 1.8, bold = false, monospace = false) {
+        const textNode = createSvgNode("text", {
+          x: fullSide / 2, y, fill: foreground,
+          "text-anchor": "middle",
+          "font-family": monospace ? "monospace" : "Arial, sans-serif",
+          "font-weight": bold ? "700" : "400",
+          "font-size": Math.min(fontSize,
+            (fullSide - 4) / Math.max(1, Array.from(value).length * (monospace ? 0.64 : 0.59)))
+        });
+        textNode.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        textNode.textContent = value;
+        fragment.appendChild(textNode);
+      }
+      wifiLine(wifiCard.heading, wifiCard.headingY, 1.25, true);
+      wifiLine("TÊN WI-FI (SSID)", wifiCard.ssidLabelY, 1.25, true);
+      wifiCard.ssidLines.forEach((line, index) =>
+        wifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
+      wifiLine(wifiCard.passwordLabel, wifiCard.passwordLabelY, 1.2, true);
+      wifiCard.passwordLines.forEach((line, index) =>
+        wifiLine(line, wifiCard.passwordYs[index], 1.85, true, true));
+    }
     preview.replaceChildren(fragment);
-    preview.setAttribute("viewBox", "0 0 " + fullSide + " " + layout.totalHeight);
-    preview.setAttribute("height", String(Math.round(320 * layout.totalHeight / fullSide)));
+    preview.setAttribute("viewBox", "0 0 " + fullSide + " " + fullHeight);
+    preview.setAttribute("height", String(Math.round(320 * fullHeight / fullSide)));
     preview.style.display = "block";
     empty.style.display = "none";
-    current = { qr, shape, foreground, background, fullSide, layout, logo: logoState, logoSize: logoSizeEl.value };
+    current = { qr, shape, foreground, background, fullSide, layout,
+      wifiCard, logo: logoState, logoSize: logoSizeEl.value };
+    const manual = el("wifi-credential-preview");
+    manual.hidden = !wifiCard;
+    el("wifi-ssid-preview").textContent = wifiCard ? String(data.ssid ?? "").trim() : "";
+    el("wifi-password-preview").textContent = wifiCard
+      ? (data.wifiSecurity === "nopass" ? "Mạng mở — không có mật khẩu" : String(data.wifiPassword ?? ""))
+      : "";
     svgButton.disabled = false;
     pngButton.disabled = false;
-    setStatus(logoState
+    setStatus(wifiCard
+      ? "⚠️ Mật khẩu Wi-Fi đang hiện rõ trên ảnh PNG/SVG. Chỉ chia sẻ cho người tin cậy."
+      : logoState
       ? "Logo đã gắn vào QR (sửa lỗi H). Hãy quét thử trên điện thoại trước khi in."
       : kind === "wifi"
         ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
@@ -254,11 +299,11 @@ function downloadSVG() {
 
 function downloadPNG() {
   if (!current) return;
-  const { qr, shape, foreground, background, fullSide, layout, logo, logoSize } = current;
+  const { qr, shape, foreground, background, fullSide, layout, wifiCard, logo, logoSize } = current;
   const canvas = document.createElement("canvas");
   const unit = PNG_SIZE / fullSide;
   canvas.width = PNG_SIZE;
-  canvas.height = Math.round(layout.totalHeight * unit);
+  canvas.height = Math.round((wifiCard ? wifiCard.totalHeight : layout.totalHeight) * unit);
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) return setStatus("Trình duyệt không hỗ trợ Canvas.", true);
   ctx.fillStyle = background;
@@ -297,6 +342,28 @@ function downloadPNG() {
   drawCaption(layout.title, layout.titleY, 2.35, true);
   drawCaption(layout.caption, layout.captionY, 2.3, true);
   drawCaption(layout.note, layout.noteY, 1.35, false);
+  if (wifiCard) {
+    ctx.fillStyle = foreground;
+    ctx.fillRect(2.4 * unit, wifiCard.separatorY * unit,
+      (fullSide - 4.8) * unit, Math.max(1, 0.055 * unit));
+    function drawWifiLine(value, y, fontSize = 1.85, bold = false, mono = false) {
+      ctx.fillStyle = foreground;
+      const size = Math.min(fontSize,
+        (fullSide - 4) / Math.max(1, Array.from(value).length * (mono ? 0.64 : 0.59)));
+      ctx.font = (bold ? "700 " : "") + size * unit + "px " +
+        (mono ? "monospace" : "Arial, sans-serif");
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(value, fullSide * unit / 2, y * unit, (fullSide - 4) * unit);
+    }
+    drawWifiLine(wifiCard.heading, wifiCard.headingY, 1.25, true);
+    drawWifiLine("TÊN WI-FI (SSID)", wifiCard.ssidLabelY, 1.25, true);
+    wifiCard.ssidLines.forEach((line, index) =>
+      drawWifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
+    drawWifiLine(wifiCard.passwordLabel, wifiCard.passwordLabelY, 1.2, true);
+    wifiCard.passwordLines.forEach((line, index) =>
+      drawWifiLine(line, wifiCard.passwordYs[index], 1.85, true, true));
+  }
   canvas.toBlob((blob) => download(blob, "qrframe-" + kindEl.value + ".png"), "image/png");
 }
 
@@ -334,7 +401,12 @@ function previewLanding() {
 function queueRender() {
   updateLandingTools();
   if (inputTimer !== null) clearTimeout(inputTimer);
-  inputTimer = setTimeout(render, 180);
+  if (kindEl.value === "wifi") {
+    inputTimer = null;
+    render();
+  } else {
+    inputTimer = setTimeout(render, 180);
+  }
 }
 
 for (const input of document.querySelectorAll(".type-form input, .type-form textarea, .type-form select")) {
@@ -345,6 +417,10 @@ for (const input of document.querySelectorAll(".type-form input, .type-form text
   });
 }
 kindEl.addEventListener("change", switchType);
+wifiOptInEl.addEventListener("change", () => {
+  // Immediate render avoids stale exported password after disabling the display.
+  queueRender();
+});
 for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl, logoSizeEl, el("qr-title"), el("caption-mode"), el("caption-custom"), el("qr-note")]) {
   input.addEventListener("change", () => { showCaptionCustom(); queueRender(); });
   input.addEventListener("input", queueRender);
@@ -368,6 +444,7 @@ el("clear").addEventListener("click", () => {
   el("qr-note").value = "";
   el("caption-custom").value = "";
   el("caption-mode").value = "scan";
+  wifiOptInEl.checked = false;
   removeLogo();
   showCaptionCustom();
   kindEl.value = "url";

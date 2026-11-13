@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   singleLine, effectiveCaption, brandLayout, logoGeometry,
-  detectImageFormat, checkLogoFile, readableTextSize
+  detectImageFormat, checkLogoFile, readableTextSize, wifiCredentialCard
 } from "../secure/branding.js";
 
 test("English/Vietnamese/custom scan captions and safe one-line text", () => {
@@ -57,4 +57,38 @@ test("logo accepts actual PNG/JPEG/WebP signatures and rejects SVG disguised as 
   assert.throws(() => checkLogoFile({size:3_000_000,type:"image/png"},png));
   assert.throws(() => checkLogoFile({size:1000,type:"image/gif"},png));
   assert.throws(() => checkLogoFile({size:1000,type:"image/png"},jpg));
+});
+
+
+test("Wi-Fi credentials panel is laid out beneath QR and preserves exact secret characters", () => {
+  const ssid="Công ty Phước Thành - IT";
+  const secret="AA  bb;:!@#  123456789012345678901234567890123";
+  const qrHeight=41;
+  const c=wifiCredentialCard(qrHeight,41,ssid,secret,false);
+  assert.ok(c.separatorY > qrHeight);
+  assert.ok(c.ssidLabelY > c.headingY);
+  assert.ok(c.passwordLabelY > c.ssidYs.at(-1));
+  assert.ok(c.totalHeight > c.passwordYs.at(-1));
+  assert.equal(c.ssidLines.join(""),ssid);
+  assert.equal(c.passwordLines.join(""),secret); // no spaces or characters inserted/removed
+  assert.equal(c.passwordLabel,"MẬT KHẨU (NỐI LIỀN CÁC DÒNG)");
+  for(const line of c.passwordLines) assert.ok(Array.from(line).length <= 24);
+});
+
+test("Open Wi-Fi prints an explicit no-password label", () => {
+  const c=wifiCredentialCard(41,41,"Guest","",true);
+  assert.deepEqual(c.passwordLines,["Không cần mật khẩu"]);
+  assert.equal(c.passwordLabel,"BẢO MẬT");
+});
+
+test("Wi-Fi visible credentials require explicit opt-in in UI and are included in both SVG and PNG paths", async () => {
+  const {readFileSync} = await import("node:fs");
+  const html=readFileSync(new URL("../secure/index.html", import.meta.url),"utf8");
+  const app=readFileSync(new URL("../secure/app.js", import.meta.url),"utf8");
+  assert.match(html, /id="wifi-show-credentials" type="checkbox"/);
+  assert.doesNotMatch(html, /id="wifi-show-credentials"[^>]*checked/);
+  assert.match(app, /kind === "wifi" && wifiOptInEl.checked/);
+  assert.match(app, /wifiCard\.passwordLines\.forEach/g);
+  assert.match(app, /el\("wifi-password-preview"\)\.textContent/);
+  assert.match(app, /wifiOptInEl\.checked = false/);
 });
