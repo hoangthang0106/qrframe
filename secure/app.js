@@ -3,6 +3,7 @@ import { ByteEncoder, generateWithEncoder } from "furious-qr";
 import { buildPayload } from "./payload.js";
 import { registerExtraForms } from "./extra-ui.js";
 import { buildLandingHtml } from "./landing.js";
+import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine } from "./branding.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const QUIET_ZONE = 4;
@@ -20,7 +21,67 @@ const svgButton = el("svg");
 const pngButton = el("png");
 let current = null;
 let inputTimer = null;
+let logoState = null;
+let logoRequest = 0;
 registerExtraForms();
+const logoFileEl = el("logo-file");
+const logoSizeEl = el("logo-size");
+function brandOptions() {
+  return {
+    title: singleLine(el("qr-title").value, 40),
+    caption: effectiveCaption(el("caption-mode").value, el("caption-custom").value),
+    note: singleLine(el("qr-note").value, 54)
+  };
+}
+function appendBrandLabel(fragment, value, y, fontSize, bold, color, width) {
+  if (!value) return;
+  const t = createSvgNode("text", {
+    x: width / 2,
+    y,
+    fill: color,
+    "text-anchor": "middle",
+    "font-family": "Arial, sans-serif",
+    "font-size": readableTextSize(value, width, fontSize),
+    "font-weight": bold ? "700" : "400"
+  });
+  t.textContent = value;
+  fragment.appendChild(t);
+}
+function showCaptionCustom() {
+  el("caption-custom-wrap").hidden = el("caption-mode").value !== "custom";
+}
+function showLogoStatus(message) {
+  el("logo-status").textContent = message;
+  el("logo-remove").disabled = !logoState;
+  el("ecl").disabled = Boolean(logoState);
+}
+async function handleLogoFile() {
+  const file = logoFileEl.files && logoFileEl.files[0];
+  logoFileEl.value = "";
+  const request = ++logoRequest;
+  logoState = null;
+  if (!file) { showLogoStatus("Không có logo."); queueRender(); return; }
+  showLogoStatus("Đang đọc và chuyển logo thành PNG cục bộ...");
+  try {
+    const sanitized = await rasterizeLogo(file);
+    if (request !== logoRequest) return;
+    logoState = sanitized;
+    el("ecl").value = "3";
+    showLogoStatus("Logo đã được chuyển sang PNG, loại bỏ metadata gốc. Không upload lên server.");
+  } catch (error) {
+    if (request !== logoRequest) return;
+    logoState = null;
+    showLogoStatus(error instanceof Error ? error.message : "Không thể xử lý logo.");
+  }
+  queueRender();
+}
+function removeLogo() {
+  ++logoRequest;
+  logoState = null;
+  logoFileEl.value = "";
+  showLogoStatus("Đã xóa logo khỏi bộ nhớ trang.");
+  queueRender();
+}
 
 function setStatus(message, error = false) {
   statusEl.textContent = message;
@@ -108,6 +169,7 @@ function render() {
   }
 
   const shape = shapeEl.value;
+  if (logoState) eclEl.value = "3";
   const ecl = Number(eclEl.value);
   try {
     const qr = generateWithEncoder(new ByteEncoder(text), {
@@ -119,13 +181,14 @@ function render() {
     });
     const side = qr.version * 4 + 17;
     const fullSide = side + QUIET_ZONE * 2;
+    const layout = brandLayout(fullSide, brandOptions());
     const fragment = document.createDocumentFragment();
     fragment.appendChild(createSvgNode("rect", {
-      x: 0, y: 0, width: fullSide, height: fullSide, fill: background,
+      x: 0, y: 0, width: fullSide, height: layout.totalHeight, fill: background,
     }));
     forEachDarkModule(qr, (x, y, finder) => {
       const px = x + QUIET_ZONE;
-      const py = y + QUIET_ZONE;
+      const py = y + QUIET_ZONE + layout.top;
       if (shape === "dots" && !finder) {
         fragment.appendChild(createSvgNode("circle", {
           cx: px + 0.5, cy: py + 0.5, r: 0.43, fill: foreground,
@@ -136,16 +199,34 @@ function render() {
         fragment.appendChild(createSvgNode("rect", attrs));
       }
     });
+    if (logoState) {
+      const g = logoGeometry(side, fullSide, layout.top, logoSizeEl.value);
+      fragment.appendChild(createSvgNode("rect", {
+        x: g.bgX, y: g.bgY, width: g.bgSize, height: g.bgSize,
+        rx: g.pad * 0.55, fill: background
+      }));
+      // Only sanitized, locally re-encoded PNG data URLs are ever placed here.
+      fragment.appendChild(createSvgNode("image", {
+        x: g.x, y: g.y, width: g.size, height: g.size,
+        href: logoState.dataUrl, preserveAspectRatio: "xMidYMid meet"
+      }));
+    }
+    appendBrandLabel(fragment, layout.title, layout.titleY, 2.35, true, foreground, fullSide);
+    appendBrandLabel(fragment, layout.caption, layout.captionY, 2.3, true, foreground, fullSide);
+    appendBrandLabel(fragment, layout.note, layout.noteY, 1.35, false, foreground, fullSide);
     preview.replaceChildren(fragment);
-    preview.setAttribute("viewBox", "0 0 " + fullSide + " " + fullSide);
+    preview.setAttribute("viewBox", "0 0 " + fullSide + " " + layout.totalHeight);
+    preview.setAttribute("height", String(Math.round(320 * layout.totalHeight / fullSide)));
     preview.style.display = "block";
     empty.style.display = "none";
-    current = { qr, shape, foreground, background, fullSide };
+    current = { qr, shape, foreground, background, fullSide, layout, logo: logoState, logoSize: logoSizeEl.value };
     svgButton.disabled = false;
     pngButton.disabled = false;
-    setStatus(kind === "wifi"
-      ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
-      : "QR được tạo ngay trên trình duyệt. Không gửi nội dung lên server.");
+    setStatus(logoState
+      ? "Logo đã gắn vào QR (sửa lỗi H). Hãy quét thử trên điện thoại trước khi in."
+      : kind === "wifi"
+        ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
+        : "QR được tạo ngay trên trình duyệt. Không gửi nội dung lên server.");
   } catch {
     resetPreview("Nội dung quá dài hoặc không thể tạo QR. Hãy rút gọn hoặc giảm mức sửa lỗi.", true);
   }
@@ -173,18 +254,19 @@ function downloadSVG() {
 
 function downloadPNG() {
   if (!current) return;
-  const { qr, shape, foreground, background, fullSide } = current;
+  const { qr, shape, foreground, background, fullSide, layout, logo, logoSize } = current;
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = PNG_SIZE;
+  const unit = PNG_SIZE / fullSide;
+  canvas.width = PNG_SIZE;
+  canvas.height = Math.round(layout.totalHeight * unit);
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) return setStatus("Trình duyệt không hỗ trợ Canvas.", true);
-  const unit = PNG_SIZE / fullSide;
   ctx.fillStyle = background;
-  ctx.fillRect(0, 0, PNG_SIZE, PNG_SIZE);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = foreground;
   forEachDarkModule(qr, (x, y, finder) => {
     const px = (x + QUIET_ZONE) * unit;
-    const py = (y + QUIET_ZONE) * unit;
+    const py = (y + QUIET_ZONE + layout.top) * unit;
     if (shape === "dots" && !finder) {
       ctx.beginPath();
       ctx.arc(px + unit * 0.5, py + unit * 0.5, unit * 0.43, 0, Math.PI * 2);
@@ -197,6 +279,24 @@ function downloadPNG() {
       ctx.fillRect(px, py, unit, unit);
     }
   });
+  if (logo) {
+    const g = logoGeometry(qr.version * 4 + 17, fullSide, layout.top, logoSize);
+    ctx.fillStyle = background;
+    ctx.fillRect(g.bgX * unit, g.bgY * unit, g.bgSize * unit, g.bgSize * unit);
+    ctx.drawImage(logo.canvas, g.x * unit, g.y * unit, g.size * unit, g.size * unit);
+  }
+  function drawCaption(value, y, size, bold) {
+    if (!value) return;
+    const px = readableTextSize(value, fullSide, size) * unit;
+    ctx.fillStyle = foreground;
+    ctx.font = (bold ? "bold " : "") + px + "px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(value, fullSide / 2 * unit, y * unit, (fullSide - 6) * unit);
+  }
+  drawCaption(layout.title, layout.titleY, 2.35, true);
+  drawCaption(layout.caption, layout.captionY, 2.3, true);
+  drawCaption(layout.note, layout.noteY, 1.35, false);
   canvas.toBlob((blob) => download(blob, "qrframe-" + kindEl.value + ".png"), "image/png");
 }
 
@@ -245,10 +345,12 @@ for (const input of document.querySelectorAll(".type-form input, .type-form text
   });
 }
 kindEl.addEventListener("change", switchType);
-for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl]) {
-  input.addEventListener("change", queueRender);
+for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl, logoSizeEl, el("qr-title"), el("caption-mode"), el("caption-custom"), el("qr-note")]) {
+  input.addEventListener("change", () => { showCaptionCustom(); queueRender(); });
   input.addEventListener("input", queueRender);
 }
+logoFileEl.addEventListener("change", handleLogoFile);
+el("logo-remove").addEventListener("click", removeLogo);
 el("landing-download").addEventListener("click", downloadLanding);
 el("landing-preview").addEventListener("click", previewLanding);
 el("clear").addEventListener("click", () => {
@@ -262,9 +364,16 @@ el("clear").addEventListener("click", () => {
   for (const input of document.querySelectorAll(".type-form select")) {
     input.selectedIndex = 0;
   }
+  el("qr-title").value = "";
+  el("qr-note").value = "";
+  el("caption-custom").value = "";
+  el("caption-mode").value = "scan";
+  removeLogo();
+  showCaptionCustom();
   kindEl.value = "url";
   switchType();
 });
 svgButton.addEventListener("click", downloadSVG);
 pngButton.addEventListener("click", downloadPNG);
 switchType();
+showCaptionCustom();

@@ -44,3 +44,17 @@ input::placeholder,textarea::placeholder{color:#74839a}
 footer{margin-top:26px;text-align:center;color:#8293aa;font-size:12px;line-height:1.7}
 @media(max-width:870px){.grid{grid-template-columns:1fr}.preview-panel{order:2}}
 @media(max-width:560px){.container{padding:18px 11px}.panel{padding:17px}.fields.two,.controls{grid-template-columns:1fr}.privacy-actions{align-items:start;flex-direction:column}.canvas{min-height:270px}.brand{font-size:19px}}
+
+/* Local-only QR logo, caption, heading and contact text settings */
+.branding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:10px 0 14px}
+.brand-input-wrap,.brand-copy-wrap{background:#101a2a;border:1px solid #2a3b52;border-radius:12px;padding:17px 14px 10px;min-width:0}
+.brand-input-wrap>label,.brand-copy-wrap>label{display:block}
+.brand-input-wrap input[type=file]{width:100%;padding:9px;height:auto;min-height:42px;background:#0d1422;border:1px solid #40506a;color:#d5e2f2;font-size:12px}
+.brand-input-wrap input[type=file]::file-selector-button{border:0;border-radius:7px;background:#2a6258;color:white;padding:7px 10px;margin-right:8px;cursor:pointer}
+.brand-actions{display:flex;align-items:end;gap:12px;margin:14px 0}
+.brand-actions>label{flex:1;margin-bottom:0;min-width:0}
+.brand-actions>button{font-size:12px;line-height:1.2;padding:10px 12px}
+.brand-actions button:disabled{opacity:.4;cursor:not-allowed}
+.brand-copy-wrap label{margin-bottom:14px}
+.branding-grid .hint{margin-bottom:0}
+@media(max-width:800px){.branding-grid{grid-template-columns:1fr}}

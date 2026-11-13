@@ -184,6 +184,43 @@
           <div><label for="fg">Màu mã</label><input id="fg" type="color" value="#111827" aria-label="Màu mã"></div>
           <div><label for="bg">Màu nền</label><input id="bg" type="color" value="#ffffff" aria-label="Màu nền"></div>
         </div>
+        <div class="settings-title">🖼️ Logo &amp; chữ trên mã QR</div>
+        <div class="branding-grid">
+          <div class="brand-input-wrap">
+            <label for="logo-file">Đính kèm logo từ máy (PNG, JPG, WebP ≤ 2 MB)</label>
+            <input id="logo-file" type="file" accept="image/png,image/jpeg,image/webp" autocomplete="off">
+            <div class="brand-actions">
+              <button type="button" id="logo-remove" class="clear-button" disabled>Xóa logo</button>
+              <label for="logo-size">Kích thước logo
+                <select id="logo-size">
+                  <option value="small">Nhỏ — ưu tiên quét tốt</option>
+                  <option value="medium">Vừa — tối đa 14%</option>
+                </select>
+              </label>
+            </div>
+            <p id="logo-status" class="hint" role="status" aria-live="polite">Logo chỉ xử lý trong trình duyệt, không upload.</p>
+          </div>
+          <div class="brand-copy-wrap">
+            <label for="qr-title">Tiêu đề phía trên QR (tùy chọn)
+              <input id="qr-title" type="text" maxlength="40" placeholder="Tên công ty, sản phẩm, sự kiện…" autocomplete="off">
+            </label>
+            <label for="caption-mode">Chữ dưới mã QR
+              <select id="caption-mode">
+                <option value="scan">SCAN ME</option>
+                <option value="viet">QUÉT MÃ</option>
+                <option value="custom">Tự điền nội dung</option>
+                <option value="none">Không hiển thị</option>
+              </select>
+            </label>
+            <label for="caption-custom" id="caption-custom-wrap" hidden>Nội dung dưới mã
+              <input id="caption-custom" type="text" maxlength="36" placeholder="Ví dụ: QUÉT ĐỂ LIÊN HỆ" autocomplete="off">
+            </label>
+            <label for="qr-note">Thông tin phụ dưới QR (tùy chọn)
+              <input id="qr-note" type="text" maxlength="54" placeholder="Ví dụ: Hotline 090… | Mã phòng ban" autocomplete="off">
+            </label>
+          </div>
+        </div>
+        <p class="hint warning">⚠️ Logo nằm giữa mã QR có thể làm giảm khả năng quét. Khi thêm logo, ứng dụng dùng mức sửa lỗi H. Hãy quét thử trước khi in hoặc chia sẻ.</p>
         <div class="privacy-actions">
           <span class="hint">Không lưu nội dung hoặc mật khẩu lên server.</span>
           <button type="button" id="clear" class="clear-button">Xóa dữ liệu nhập</button>
