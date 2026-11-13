@@ -4,13 +4,23 @@ import { buildPayload } from "./payload.js";
 import { registerExtraForms } from "./extra-ui.js";
 import { buildLandingHtml } from "./landing.js";
 import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine, wifiCredentialCard } from "./branding.js";
+import { BODY_STYLES, EYE_STYLES, normalizeStyle, isFinderCell, finderOrigins, modulePrimitive, finderPrimitives,
+  paintSvgPrimitive, paintCanvasPrimitive, outputWidth, outputDimensions } from "./qr-style.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const QUIET_ZONE = 4;
-const PNG_SIZE = 1024;
 const el = (id) => document.getElementById(id);
 const kindEl = el("kind");
 const shapeEl = el("shape");
+const eyeStyleEl = el("eye-style");
+const outputSizeEl = el("output-size");
+const outputCustomEl = el("output-custom");
+function showCustomOutputSize() {
+  el("output-custom-wrap").hidden = outputSizeEl.value !== "custom";
+}
+function exportWidth() {
+  return outputWidth(outputSizeEl.value, outputCustomEl.value);
+}
 const eclEl = el("ecl");
 const foregroundEl = el("fg");
 const backgroundEl = el("bg");
@@ -116,6 +126,7 @@ function resetPreview(message, error = false) {
   empty.style.display = "block";
   svgButton.disabled = true;
   pngButton.disabled = true;
+  el("output-dimensions").textContent = "";
   const manual = el("wifi-credential-preview");
   manual.hidden = true;
   el("wifi-ssid-preview").textContent = "";
@@ -182,7 +193,14 @@ function render() {
     return;
   }
 
-  const shape = shapeEl.value;
+  const shape = normalizeStyle(shapeEl.value, BODY_STYLES, "square");
+  const eyeStyle = normalizeStyle(eyeStyleEl.value, EYE_STYLES, "square");
+  let chosenWidth;
+  try { chosenWidth = exportWidth(); }
+  catch (err) {
+    resetPreview(err instanceof Error ? err.message : "Kích thước không hợp lệ.", true);
+    return;
+  }
   if (logoState) eclEl.value = "3";
   const ecl = Number(eclEl.value);
   try {
@@ -201,23 +219,23 @@ function render() {
           wifiPrintSsid.value, wifiPrintPassword.value)
       : null;
     const fullHeight = wifiCard ? wifiCard.totalHeight : layout.totalHeight;
+    const exportDims = outputDimensions(chosenWidth, fullSide, fullHeight);
     const fragment = document.createDocumentFragment();
     fragment.appendChild(createSvgNode("rect", {
       x: 0, y: 0, width: fullSide, height: fullHeight, fill: background,
     }));
-    forEachDarkModule(qr, (x, y, finder) => {
-      const px = x + QUIET_ZONE;
-      const py = y + QUIET_ZONE + layout.top;
-      if (shape === "dots" && !finder) {
-        fragment.appendChild(createSvgNode("circle", {
-          cx: px + 0.5, cy: py + 0.5, r: 0.43, fill: foreground,
-        }));
-      } else {
-        const attrs = { x: px, y: py, width: 1, height: 1, fill: foreground };
-        if (shape === "rounded" && !finder) attrs.rx = 0.2;
-        fragment.appendChild(createSvgNode("rect", attrs));
-      }
+    forEachDarkModule(qr, (x, y, protectedCell) => {
+      if (eyeStyle !== "square" && isFinderCell(x, y, side)) return;
+      const primitive = modulePrimitive(shape, x + QUIET_ZONE, y + QUIET_ZONE + layout.top, protectedCell);
+      fragment.appendChild(paintSvgPrimitive(primitive, foreground, background, createSvgNode));
     });
+    if (eyeStyle !== "square") {
+      for (const [ex, ey] of finderOrigins(side)) {
+        for (const primitive of finderPrimitives(ex + QUIET_ZONE, ey + QUIET_ZONE + layout.top, eyeStyle)) {
+          fragment.appendChild(paintSvgPrimitive(primitive, foreground, background, createSvgNode));
+        }
+      }
+    }
     if (logoState) {
       const g = logoGeometry(side, fullSide, layout.top, logoSizeEl.value);
       fragment.appendChild(createSvgNode("rect", {
@@ -267,8 +285,11 @@ function render() {
     preview.setAttribute("height", String(Math.round(320 * fullHeight / fullSide)));
     preview.style.display = "block";
     empty.style.display = "none";
-    current = { qr, shape, foreground, background, fullSide, layout,
-      wifiCard, logo: logoState, logoSize: logoSizeEl.value };
+    current = { qr, shape, eyeStyle, foreground, background, fullSide, layout,
+      exportDims, wifiCard, logo: logoState, logoSize: logoSizeEl.value };
+    el("output-dimensions").textContent = "Ảnh xuất: " + exportDims.width +
+      " × " + exportDims.height + " px (PNG / SVG)." +
+      (fullHeight > fullSide ? " Chiều cao tăng để chứa chữ hoặc thông tin dưới QR." : "");
     const manual = el("wifi-credential-preview");
     manual.hidden = !wifiCard;
     el("wifi-ssid-preview").textContent = wifiCard ? wifiPrintSsid.value : "";
@@ -282,8 +303,9 @@ function render() {
       : kind === "wifi"
         ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
         : "QR được tạo ngay trên trình duyệt. Không gửi nội dung lên server.");
-  } catch {
-    resetPreview("Nội dung quá dài hoặc không thể tạo QR. Hãy rút gọn hoặc giảm mức sửa lỗi.", true);
+  } catch (err) {
+    resetPreview(err instanceof Error && (err.message.includes("Ảnh") || err.message.includes("Kích thước"))
+      ? err.message : "Nội dung quá dài hoặc không thể tạo QR. Hãy rút gọn hoặc giảm mức sửa lỗi.", true);
   }
 }
 
@@ -303,37 +325,40 @@ function download(blob, filename) {
 function downloadSVG() {
   if (!current) return;
   // No user text is inserted as HTML/SVG markup.
-  const serialized = new XMLSerializer().serializeToString(preview);
+  const copy = preview.cloneNode(true);
+  copy.setAttribute("width", String(current.exportDims.width));
+  copy.setAttribute("height", String(current.exportDims.height));
+  const serialized = new XMLSerializer().serializeToString(copy);
   download(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }), "qrframe-" + kindEl.value + ".svg");
 }
 
 function downloadPNG() {
   if (!current) return;
-  const { qr, shape, foreground, background, fullSide, layout, wifiCard, logo, logoSize } = current;
+  const { qr, shape, eyeStyle, foreground, background, fullSide, layout,
+    exportDims, wifiCard, logo, logoSize } = current;
   const canvas = document.createElement("canvas");
-  const unit = PNG_SIZE / fullSide;
-  canvas.width = PNG_SIZE;
-  canvas.height = Math.round((wifiCard ? wifiCard.totalHeight : layout.totalHeight) * unit);
+  const unit = exportDims.width / fullSide;
+  canvas.width = exportDims.width;
+  canvas.height = exportDims.height;
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) return setStatus("Trình duyệt không hỗ trợ Canvas.", true);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = foreground;
-  forEachDarkModule(qr, (x, y, finder) => {
-    const px = (x + QUIET_ZONE) * unit;
-    const py = (y + QUIET_ZONE + layout.top) * unit;
-    if (shape === "dots" && !finder) {
-      ctx.beginPath();
-      ctx.arc(px + unit * 0.5, py + unit * 0.5, unit * 0.43, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (shape === "rounded" && !finder && typeof ctx.roundRect === "function") {
-      ctx.beginPath();
-      ctx.roundRect(px, py, unit, unit, unit * 0.2);
-      ctx.fill();
-    } else {
-      ctx.fillRect(px, py, unit, unit);
-    }
+  const side = qr.version * 4 + 17;
+  forEachDarkModule(qr, (x, y, protectedCell) => {
+    if (eyeStyle !== "square" && isFinderCell(x, y, side)) return;
+    paintCanvasPrimitive(ctx,
+      modulePrimitive(shape, x + QUIET_ZONE, y + QUIET_ZONE + layout.top, protectedCell),
+      foreground, background, unit);
   });
+  if (eyeStyle !== "square") {
+    for (const [ex, ey] of finderOrigins(side)) {
+      for (const primitive of finderPrimitives(ex + QUIET_ZONE, ey + QUIET_ZONE + layout.top, eyeStyle)) {
+        paintCanvasPrimitive(ctx, primitive, foreground, background, unit);
+      }
+    }
+  }
   if (logo) {
     const g = logoGeometry(qr.version * 4 + 17, fullSide, layout.top, logoSize);
     ctx.fillStyle = background;
@@ -443,10 +468,17 @@ for (const input of [wifiPrintSsid, wifiPrintPassword]) {
   input.addEventListener("input", queueRender);
   input.addEventListener("change", queueRender);
 }
-for (const input of [shapeEl, eclEl, foregroundEl, backgroundEl, logoSizeEl, el("qr-title"), el("caption-mode"), el("caption-custom"), el("qr-note")]) {
+for (const input of [shapeEl, eyeStyleEl, eclEl, foregroundEl, backgroundEl, logoSizeEl,
+  el("qr-title"), el("caption-mode"), el("caption-custom"), el("qr-note")]) {
   input.addEventListener("change", () => { showCaptionCustom(); queueRender(); });
   input.addEventListener("input", queueRender);
 }
+outputSizeEl.addEventListener("change", () => {
+  showCustomOutputSize();
+  queueRender();
+});
+outputCustomEl.addEventListener("input", queueRender);
+outputCustomEl.addEventListener("change", queueRender);
 logoFileEl.addEventListener("change", handleLogoFile);
 el("logo-remove").addEventListener("click", removeLogo);
 el("landing-download").addEventListener("click", downloadLanding);
@@ -466,6 +498,11 @@ el("clear").addEventListener("click", () => {
   el("qr-note").value = "";
   el("caption-custom").value = "";
   el("caption-mode").value = "scan";
+  shapeEl.value = "square";
+  eyeStyleEl.value = "square";
+  outputSizeEl.value = "1024";
+  outputCustomEl.value = "1024";
+  showCustomOutputSize();
   wifiOptInEl.checked = false;
   wifiPrintFields.hidden = true;
   wifiPrintSsid.value = "";
@@ -479,3 +516,4 @@ svgButton.addEventListener("click", downloadSVG);
 pngButton.addEventListener("click", downloadPNG);
 switchType();
 showCaptionCustom();
+showCustomOutputSize();

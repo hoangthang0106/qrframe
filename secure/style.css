@@ -79,3 +79,9 @@ footer{margin-top:26px;text-align:center;color:#8293aa;font-size:12px;line-heigh
 .wifi-print-fields label{color:#f0ddbc;font-weight:600;margin-bottom:14px}
 .wifi-print-fields input{background:#1b1713!important;border:1px solid #755c38!important;color:#f9f5ec!important}
 .wifi-print-fields .hint{color:#d7c5a8}
+
+/* QR shape, eye and output size controls */
+.size-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:15px;margin:13px 0}
+.size-controls>div{min-width:0}
+.dimension-note{padding:9px 11px;border:1px solid #31554f;background:#102823;border-radius:8px;color:#b7e5d5;font-size:12px;line-height:1.6;text-align:left;margin:13px 0 4px}
+@media(max-width:560px){.size-controls{grid-template-columns:1fr}}

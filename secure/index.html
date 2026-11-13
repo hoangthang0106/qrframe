@@ -192,8 +192,25 @@
         </div>
         <div class="settings-title">🎨 Tùy chỉnh mã QR</div>
         <div class="controls">
-          <div><label for="shape">Kiểu hiển thị</label>
-            <select id="shape"><option value="square">Vuông tiêu chuẩn</option><option value="rounded">Bo góc</option><option value="dots">Chấm tròn</option></select>
+          <div><label for="shape">Kiểu chấm / họa tiết QR</label>
+            <select id="shape">
+              <option value="square">Vuông truyền thống — dễ quét</option>
+              <option value="rounded">Vuông bo góc</option>
+              <option value="dots">Chấm tròn</option>
+              <option value="microdots">Chấm tròn nhỏ</option>
+              <option value="soft">Vuông mềm / cách ô</option>
+              <option value="diamond">Kim cương</option>
+              <option value="hexagon">Lục giác</option>
+              <option value="horizontal">Thanh ngang</option>
+              <option value="vertical">Thanh dọc</option>
+            </select>
+          </div>
+          <div><label for="eye-style">Kiểu ô định vị (3 góc)</label>
+            <select id="eye-style">
+              <option value="square">Vuông tiêu chuẩn — dễ quét</option>
+              <option value="rounded">Bo góc</option>
+              <option value="dot">Tâm tròn</option>
+            </select>
           </div>
           <div><label for="ecl">Mức sửa lỗi QR</label>
             <select id="ecl"><option value="3">H — 30% (cao)</option><option value="2">Q — 25%</option><option value="1">M — 15%</option><option value="0">L — 7%</option></select>
@@ -201,6 +218,26 @@
           <div><label for="fg">Màu mã</label><input id="fg" type="color" value="#111827" aria-label="Màu mã"></div>
           <div><label for="bg">Màu nền</label><input id="bg" type="color" value="#ffffff" aria-label="Màu nền"></div>
         </div>
+        <p class="hint">Kiểu vuông/ô định vị tiêu chuẩn là dễ quét nhất. Các kiểu cách điệu giữ nguyên phần căn chỉnh quan trọng, nhưng vẫn phải kiểm tra bằng điện thoại.</p>
+        <div class="settings-title">📐 Kích thước hình QR xuất ra</div>
+        <div class="size-controls">
+          <div>
+            <label for="output-size">Chiều rộng ảnh QR (px)</label>
+            <select id="output-size">
+              <option value="256">256 px — nhỏ, dùng web</option>
+              <option value="512">512 px — dùng web</option>
+              <option value="1024" selected>1024 px — mặc định</option>
+              <option value="2048">2048 px — sắc nét khi in</option>
+              <option value="3072">3072 px — khổ lớn</option>
+              <option value="custom">Tự nhập kích thước...</option>
+            </select>
+          </div>
+          <div id="output-custom-wrap" hidden>
+            <label for="output-custom">Kích thước tự nhập (256–4096 px)</label>
+            <input id="output-custom" type="number" inputmode="numeric" min="256" max="4096" step="1" value="1024">
+          </div>
+        </div>
+        <p class="hint">Chiều rộng gồm cả viền trắng quanh QR; chiều cao tự tăng nếu có tiêu đề, SCAN ME hoặc thông tin Wi-Fi. PNG và SVG xuất theo kích thước đã chọn, xem trước trên màn hình giữ kích thước vừa khung.</p>
         <div class="settings-title">🖼️ Logo &amp; chữ trên mã QR</div>
         <div class="branding-grid">
           <div class="brand-input-wrap">
@@ -255,10 +292,11 @@
           <div><span>Mật khẩu Wi-Fi</span><code id="wifi-password-preview"></code></div>
           <p>Thông tin này cũng nằm trong file PNG/SVG khi tải xuống.</p>
         </div>
+        <p id="output-dimensions" class="dimension-note" role="status" aria-live="polite"></p>
         <p id="status" role="status" aria-live="polite"></p>
         <div class="actions">
           <button id="svg" type="button" disabled>Tải SVG</button>
-          <button id="png" type="button" disabled>Tải PNG (1024px)</button>
+          <button id="png" type="button" disabled>Tải PNG</button>
         </div>
         <p class="hint">Luôn thử quét bằng điện thoại trước khi sử dụng. QR chứa thông tin đã mã hóa, không phải lớp mã hóa bảo mật.</p>
       </section>
