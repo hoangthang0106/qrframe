@@ -1,0 +1,534 @@
+// QRFrame Secure LAN: all payloads are built locally; no remote API, telemetry or runtime code editor.
+import { ByteEncoder, generateWithEncoder } from "furious-qr";
+import { buildPayload } from "./payload.js";
+import { registerExtraForms } from "./extra-ui.js";
+import { buildLandingHtml } from "./landing.js";
+import { getLanguage, setLanguage, translateDom } from "./i18n.js";
+import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine, wifiCredentialCard } from "./branding.js";
+import { BODY_STYLES, EYE_STYLES, normalizeStyle, isFinderCell, finderOrigins, modulePrimitive, finderPrimitives,
+  paintSvgPrimitive, paintCanvasPrimitive, outputWidth, outputDimensions } from "./qr-style.js";
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const QUIET_ZONE = 4;
+const el = (id) => document.getElementById(id);
+const kindEl = el("kind");
+const shapeEl = el("shape");
+const eyeStyleEl = el("eye-style");
+const outputSizeEl = el("output-size");
+const outputCustomEl = el("output-custom");
+function showCustomOutputSize() {
+  el("output-custom-wrap").hidden = outputSizeEl.value !== "custom";
+}
+function exportWidth() {
+  return outputWidth(outputSizeEl.value, outputCustomEl.value);
+}
+const eclEl = el("ecl");
+const foregroundEl = el("fg");
+const backgroundEl = el("bg");
+const preview = el("qr");
+const empty = el("empty");
+const statusEl = el("status");
+const languageEl = el("language");
+const svgButton = el("svg");
+const pngButton = el("png");
+let current = null;
+let inputTimer = null;
+let logoState = null;
+let logoRequest = 0;
+registerExtraForms();
+const wifiOptInEl = el("wifi-show-credentials");
+const wifiPrintFields = el("wifi-print-fields");
+const wifiPrintSsid = el("wifi-print-ssid");
+const wifiPrintPassword = el("wifi-print-password");
+const logoFileEl = el("logo-file");
+const logoSizeEl = el("logo-size");
+function brandOptions() {
+  return {
+    title: singleLine(el("qr-title").value, 40),
+    caption: effectiveCaption(el("caption-mode").value, el("caption-custom").value),
+    note: singleLine(el("qr-note").value, 54)
+  };
+}
+function appendBrandLabel(fragment, value, y, fontSize, bold, color, width) {
+  if (!value) return;
+  const t = createSvgNode("text", {
+    x: width / 2,
+    y,
+    fill: color,
+    "text-anchor": "middle",
+    "font-family": "Arial, sans-serif",
+    "font-size": readableTextSize(value, width, fontSize),
+    "font-weight": bold ? "700" : "400"
+  });
+  t.textContent = value;
+  fragment.appendChild(t);
+}
+function showCaptionCustom() {
+  el("caption-custom-wrap").hidden = el("caption-mode").value !== "custom";
+}
+function showLogoStatus(message) {
+  el("logo-status").textContent = message;
+  translateDom(el("logo-status"));
+  el("logo-remove").disabled = !logoState;
+  el("ecl").disabled = Boolean(logoState);
+}
+async function handleLogoFile() {
+  const file = logoFileEl.files && logoFileEl.files[0];
+  logoFileEl.value = "";
+  const request = ++logoRequest;
+  logoState = null;
+  if (!file) { showLogoStatus("Không có logo."); queueRender(); return; }
+  showLogoStatus("Đang đọc và chuyển logo thành PNG cục bộ...");
+  try {
+    const sanitized = await rasterizeLogo(file);
+    if (request !== logoRequest) return;
+    logoState = sanitized;
+    el("ecl").value = "3";
+    showLogoStatus("Logo đã được chuyển sang PNG, loại bỏ metadata gốc. Không upload lên server.");
+  } catch (error) {
+    if (request !== logoRequest) return;
+    logoState = null;
+    showLogoStatus(error instanceof Error ? error.message : "Không thể xử lý logo.");
+  }
+  queueRender();
+}
+function removeLogo() {
+  ++logoRequest;
+  logoState = null;
+  logoFileEl.value = "";
+  showLogoStatus("Đã xóa logo khỏi bộ nhớ trang.");
+  queueRender();
+}
+
+function setStatus(message, error = false) {
+  statusEl.textContent = message;
+  translateDom(statusEl);
+  statusEl.classList.toggle("error", error);
+}
+
+function createSvgNode(tag, attrs) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(attrs)) {
+    node.setAttribute(name, String(value));
+  }
+  return node;
+}
+
+function forEachDarkModule(qr, callback) {
+  const side = qr.version * 4 + 17;
+  for (let i = 0; i < qr.matrix.length; i++) {
+    const flags = qr.matrix[i];
+    if (!(flags & 1)) continue;
+    callback(i % side, Math.floor(i / side), Boolean(flags & 4));
+  }
+}
+
+function resetPreview(message, error = false) {
+  current = null;
+  preview.replaceChildren();
+  preview.style.display = "none";
+  empty.style.display = "block";
+  svgButton.disabled = true;
+  pngButton.disabled = true;
+  el("output-dimensions").textContent = "";
+  const manual = el("wifi-credential-preview");
+  manual.hidden = true;
+  el("wifi-ssid-preview").textContent = "";
+  el("wifi-password-preview").textContent = "";
+  setStatus(message, error);
+}
+
+function getData() {
+  const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
+  if (!form) return {};
+  const data = {};
+  for (const input of form.querySelectorAll("[data-field]")) {
+    data[input.dataset.field] = input.value;
+  }
+  return data;
+}
+
+function updateWifiPassword() {
+  const type = document.querySelector('[data-type="wifi"] [data-field="wifiSecurity"]');
+  const label = document.querySelector('[data-wifi-password]');
+  const password = document.querySelector('[data-field="wifiPassword"]');
+  const open = type.value === "nopass";
+  label.hidden = open;
+  if (open) password.value = "";
+}
+
+function switchType() {
+  for (const form of document.querySelectorAll(".type-form")) {
+    form.hidden = form.dataset.type !== kindEl.value;
+  }
+  updateWifiPassword();
+  if (kindEl.value !== "wifi") {
+    wifiOptInEl.checked = false;
+    wifiPrintFields.hidden = true;
+    wifiPrintSsid.value = "";
+    wifiPrintPassword.value = "";
+  }
+  updateLandingTools();
+  resetPreview(kindEl.value === "landing"
+    ? "Tải HTML, đưa lên máy chủ nội bộ và nhập URL để tạo mã QR." : "Điền thông tin để tạo mã QR.");
+  const form = document.querySelector('.type-form[data-type="' + kindEl.value + '"]');
+  const hasInput = [...form.querySelectorAll("input,textarea")].some((item) => item.type !== "checkbox" && item.value.trim());
+  if (hasInput) render();
+}
+
+function render() {
+  const kind = kindEl.value;
+  const data = getData();
+  if (kind === "landing" && !String(data.landingUrl ?? "").trim()) {
+    resetPreview("Tải Landing Page HTML → đăng lên web server/NAS → nhập URL thực tế để tạo QR.");
+    return;
+  }
+  const foreground = foregroundEl.value;
+  const background = backgroundEl.value;
+  if (foreground.toLowerCase() === background.toLowerCase()) {
+    resetPreview("Màu nền và màu mã phải khác nhau.", true);
+    return;
+  }
+  let text;
+  try {
+    text = buildPayload(kind, data);
+  } catch (err) {
+    resetPreview(err instanceof Error ? err.message : "Dữ liệu không hợp lệ.", true);
+    return;
+  }
+
+  const shape = normalizeStyle(shapeEl.value, BODY_STYLES, "square");
+  const eyeStyle = normalizeStyle(eyeStyleEl.value, EYE_STYLES, "square");
+  let chosenWidth;
+  try { chosenWidth = exportWidth(); }
+  catch (err) {
+    resetPreview(err instanceof Error ? err.message : "Kích thước không hợp lệ.", true);
+    return;
+  }
+  if (logoState) eclEl.value = "3";
+  const ecl = Number(eclEl.value);
+  try {
+    const qr = generateWithEncoder(new ByteEncoder(text), {
+      minVersion: 1,
+      maxVersion: 40,
+      minEcl: ecl,
+      maxEcl: ecl,
+      mask: 2,
+    });
+    const side = qr.version * 4 + 17;
+    const fullSide = side + QUIET_ZONE * 2;
+    const layout = brandLayout(fullSide, brandOptions());
+    const wifiCard = kind === "wifi" && wifiOptInEl.checked
+      ? wifiCredentialCard(layout.totalHeight, fullSide,
+          wifiPrintSsid.value, wifiPrintPassword.value, getLanguage())
+      : null;
+    const fullHeight = wifiCard ? wifiCard.totalHeight : layout.totalHeight;
+    const exportDims = outputDimensions(chosenWidth, fullSide, fullHeight);
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(createSvgNode("rect", {
+      x: 0, y: 0, width: fullSide, height: fullHeight, fill: background,
+    }));
+    forEachDarkModule(qr, (x, y, protectedCell) => {
+      if (eyeStyle !== "square" && isFinderCell(x, y, side)) return;
+      const primitive = modulePrimitive(shape, x + QUIET_ZONE, y + QUIET_ZONE + layout.top, protectedCell);
+      fragment.appendChild(paintSvgPrimitive(primitive, foreground, background, createSvgNode));
+    });
+    if (eyeStyle !== "square") {
+      for (const [ex, ey] of finderOrigins(side)) {
+        for (const primitive of finderPrimitives(ex + QUIET_ZONE, ey + QUIET_ZONE + layout.top, eyeStyle)) {
+          fragment.appendChild(paintSvgPrimitive(primitive, foreground, background, createSvgNode));
+        }
+      }
+    }
+    if (logoState) {
+      const g = logoGeometry(side, fullSide, layout.top, logoSizeEl.value);
+      fragment.appendChild(createSvgNode("rect", {
+        x: g.bgX, y: g.bgY, width: g.bgSize, height: g.bgSize,
+        rx: g.pad * 0.55, fill: background
+      }));
+      // Only sanitized, locally re-encoded PNG data URLs are ever placed here.
+      fragment.appendChild(createSvgNode("image", {
+        x: g.x, y: g.y, width: g.size, height: g.size,
+        href: logoState.dataUrl, preserveAspectRatio: "xMidYMid meet"
+      }));
+    }
+    appendBrandLabel(fragment, layout.title, layout.titleY, 2.35, true, foreground, fullSide);
+    appendBrandLabel(fragment, layout.caption, layout.captionY, 2.3, true, foreground, fullSide);
+    appendBrandLabel(fragment, layout.note, layout.noteY, 1.35, false, foreground, fullSide);
+    if (wifiCard) {
+      fragment.appendChild(createSvgNode("line", {
+        x1: 2.4, y1: wifiCard.separatorY, x2: fullSide - 2.4,
+        y2: wifiCard.separatorY, stroke: foreground, "stroke-width": 0.055
+      }));
+      function wifiLine(value, y, fontSize = 1.8, bold = false, monospace = false) {
+        const textNode = createSvgNode("text", {
+          x: fullSide / 2, y, fill: foreground,
+          "text-anchor": "middle",
+          "font-family": monospace ? "monospace" : "Arial, sans-serif",
+          "font-weight": bold ? "700" : "400",
+          "font-size": Math.min(fontSize,
+            (fullSide - 4) / Math.max(1, Array.from(value).length * (monospace ? 0.64 : 0.59)))
+        });
+        textNode.setAttributeNS("http://www.w3.org/XML/1998/namespace", "xml:space", "preserve");
+        textNode.textContent = value;
+        fragment.appendChild(textNode);
+      }
+      if (wifiCard.ssidLines.length) {
+        wifiLine(wifiCard.ssidLabel, wifiCard.ssidLabelY, 1.25, true);
+        wifiCard.ssidLines.forEach((line, index) =>
+          wifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
+      }
+      if (wifiCard.passwordLines.length) {
+        wifiLine(wifiCard.passwordLabel, wifiCard.passwordLabelY, 1.2, true);
+        wifiCard.passwordLines.forEach((line, index) =>
+          wifiLine(line, wifiCard.passwordYs[index], 1.85, true, true));
+      }
+    }
+    preview.replaceChildren(fragment);
+    preview.setAttribute("viewBox", "0 0 " + fullSide + " " + fullHeight);
+    preview.setAttribute("height", String(Math.round(320 * fullHeight / fullSide)));
+    preview.style.display = "block";
+    empty.style.display = "none";
+    current = { qr, shape, eyeStyle, foreground, background, fullSide, layout,
+      exportDims, wifiCard, logo: logoState, logoSize: logoSizeEl.value };
+    el("output-dimensions").textContent = "Ảnh xuất: " + exportDims.width +
+      " × " + exportDims.height + " px (PNG / SVG)." +
+      (fullHeight > fullSide ? " Chiều cao tăng để chứa chữ hoặc thông tin dưới QR." : "");
+    translateDom(el("output-dimensions"));
+    const manual = el("wifi-credential-preview");
+    manual.hidden = !wifiCard;
+    el("wifi-ssid-preview").textContent = wifiCard ? wifiPrintSsid.value : "";
+    el("wifi-password-preview").textContent = wifiCard ? wifiPrintPassword.value : "";
+    svgButton.disabled = false;
+    pngButton.disabled = false;
+    setStatus(wifiCard
+      ? "⚠️ Nội dung tự nhập đang được in dưới QR và sẽ xuất hiện trong PNG/SVG. Hãy đối chiếu với Wi-Fi thực tế trước khi chia sẻ."
+      : logoState
+      ? "Logo đã gắn vào QR (sửa lỗi H). Hãy quét thử trên điện thoại trước khi in."
+      : kind === "wifi"
+        ? "⚠️ QR Wi-Fi chứa mật khẩu có thể được đọc khi quét. Chỉ chia sẻ cho người tin cậy."
+        : "QR được tạo ngay trên trình duyệt. Không gửi nội dung lên server.");
+  } catch (err) {
+    resetPreview(err instanceof Error && (err.message.includes("Ảnh") || err.message.includes("Kích thước"))
+      ? err.message : "Nội dung quá dài hoặc không thể tạo QR. Hãy rút gọn hoặc giảm mức sửa lỗi.", true);
+  }
+}
+
+function download(blob, filename) {
+  if (!blob) return;
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+}
+
+function downloadSVG() {
+  if (!current) return;
+  // No user text is inserted as HTML/SVG markup.
+  const copy = preview.cloneNode(true);
+  copy.setAttribute("width", String(current.exportDims.width));
+  copy.setAttribute("height", String(current.exportDims.height));
+  const serialized = new XMLSerializer().serializeToString(copy);
+  download(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }), "qrframe-" + kindEl.value + ".svg");
+}
+
+function downloadPNG() {
+  if (!current) return;
+  const { qr, shape, eyeStyle, foreground, background, fullSide, layout,
+    exportDims, wifiCard, logo, logoSize } = current;
+  const canvas = document.createElement("canvas");
+  const unit = exportDims.width / fullSide;
+  canvas.width = exportDims.width;
+  canvas.height = exportDims.height;
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) return setStatus("Trình duyệt không hỗ trợ Canvas.", true);
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = foreground;
+  const side = qr.version * 4 + 17;
+  forEachDarkModule(qr, (x, y, protectedCell) => {
+    if (eyeStyle !== "square" && isFinderCell(x, y, side)) return;
+    paintCanvasPrimitive(ctx,
+      modulePrimitive(shape, x + QUIET_ZONE, y + QUIET_ZONE + layout.top, protectedCell),
+      foreground, background, unit);
+  });
+  if (eyeStyle !== "square") {
+    for (const [ex, ey] of finderOrigins(side)) {
+      for (const primitive of finderPrimitives(ex + QUIET_ZONE, ey + QUIET_ZONE + layout.top, eyeStyle)) {
+        paintCanvasPrimitive(ctx, primitive, foreground, background, unit);
+      }
+    }
+  }
+  if (logo) {
+    const g = logoGeometry(qr.version * 4 + 17, fullSide, layout.top, logoSize);
+    ctx.fillStyle = background;
+    ctx.fillRect(g.bgX * unit, g.bgY * unit, g.bgSize * unit, g.bgSize * unit);
+    ctx.drawImage(logo.canvas, g.x * unit, g.y * unit, g.size * unit, g.size * unit);
+  }
+  function drawCaption(value, y, size, bold) {
+    if (!value) return;
+    const px = readableTextSize(value, fullSide, size) * unit;
+    ctx.fillStyle = foreground;
+    ctx.font = (bold ? "bold " : "") + px + "px Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(value, fullSide / 2 * unit, y * unit, (fullSide - 6) * unit);
+  }
+  drawCaption(layout.title, layout.titleY, 2.35, true);
+  drawCaption(layout.caption, layout.captionY, 2.3, true);
+  drawCaption(layout.note, layout.noteY, 1.35, false);
+  if (wifiCard) {
+    ctx.fillStyle = foreground;
+    ctx.fillRect(2.4 * unit, wifiCard.separatorY * unit,
+      (fullSide - 4.8) * unit, Math.max(1, 0.055 * unit));
+    function drawWifiLine(value, y, fontSize = 1.85, bold = false, mono = false) {
+      ctx.fillStyle = foreground;
+      const size = Math.min(fontSize,
+        (fullSide - 4) / Math.max(1, Array.from(value).length * (mono ? 0.64 : 0.59)));
+      ctx.font = (bold ? "700 " : "") + size * unit + "px " +
+        (mono ? "monospace" : "Arial, sans-serif");
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(value, fullSide * unit / 2, y * unit, (fullSide - 4) * unit);
+    }
+    if (wifiCard.ssidLines.length) {
+      drawWifiLine(wifiCard.ssidLabel, wifiCard.ssidLabelY, 1.25, true);
+      wifiCard.ssidLines.forEach((line, index) =>
+        drawWifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
+    }
+    if (wifiCard.passwordLines.length) {
+      drawWifiLine(wifiCard.passwordLabel, wifiCard.passwordLabelY, 1.2, true);
+      wifiCard.passwordLines.forEach((line, index) =>
+        drawWifiLine(line, wifiCard.passwordYs[index], 1.85, true, true));
+    }
+  }
+  canvas.toBlob((blob) => download(blob, "qrframe-" + kindEl.value + ".png"), "image/png");
+}
+
+function updateLandingTools() {
+  const active = kindEl.value === "landing";
+  const dl = el("landing-download");
+  const preview = el("landing-preview");
+  if (!active) { dl.disabled = true; preview.disabled = true; return; }
+  try {
+    buildLandingHtml(getData(), getLanguage());
+    dl.disabled = false;
+    preview.disabled = false;
+    el("landing-notice").textContent =
+      "Có thể xuất HTML ngay. QR chỉ hoạt động sau khi đăng file lên web server và nhập URL bên trên.";
+    translateDom(el("landing-notice"));
+  } catch (err) {
+    dl.disabled = true;
+    preview.disabled = true;
+    el("landing-notice").textContent = err instanceof Error ? err.message : "Chưa đủ thông tin Landing Page.";
+    translateDom(el("landing-notice"));
+  }
+}
+function landingBlob() {
+  return new Blob([buildLandingHtml(getData(), getLanguage())], { type: "text/html;charset=utf-8" });
+}
+function downloadLanding() {
+  try { download(landingBlob(), "landing-page-noi-bo.html"); }
+  catch (err) { setStatus(err instanceof Error ? err.message : "Lỗi tạo HTML.", true); }
+}
+function previewLanding() {
+  try {
+    const objectUrl = URL.createObjectURL(landingBlob());
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+  } catch (err) { setStatus(err instanceof Error ? err.message : "Lỗi xem trước.", true); }
+}
+function queueRender() {
+  updateLandingTools();
+  if (inputTimer !== null) clearTimeout(inputTimer);
+  if (kindEl.value === "wifi") {
+    inputTimer = null;
+    render();
+  } else {
+    inputTimer = setTimeout(render, 180);
+  }
+}
+
+for (const input of document.querySelectorAll(".type-form input, .type-form textarea, .type-form select")) {
+  input.addEventListener("input", queueRender);
+  input.addEventListener("change", () => {
+    if (input.dataset.field === "wifiSecurity") updateWifiPassword();
+    queueRender();
+  });
+}
+kindEl.addEventListener("change", switchType);
+languageEl.addEventListener("change", () => {
+  setLanguage(languageEl.value);
+  translateDom(document.body);
+  updateLandingTools();
+  render();
+});
+wifiOptInEl.addEventListener("change", () => {
+  wifiPrintFields.hidden = !wifiOptInEl.checked;
+  if (!wifiOptInEl.checked) {
+    wifiPrintSsid.value = "";
+    wifiPrintPassword.value = "";
+  }
+  // Immediate re-render prevents stale printed text in exported images.
+  queueRender();
+});
+for (const input of [wifiPrintSsid, wifiPrintPassword]) {
+  input.addEventListener("input", queueRender);
+  input.addEventListener("change", queueRender);
+}
+for (const input of [shapeEl, eyeStyleEl, eclEl, foregroundEl, backgroundEl, logoSizeEl,
+  el("qr-title"), el("caption-mode"), el("caption-custom"), el("qr-note")]) {
+  input.addEventListener("change", () => { showCaptionCustom(); queueRender(); });
+  input.addEventListener("input", queueRender);
+}
+outputSizeEl.addEventListener("change", () => {
+  showCustomOutputSize();
+  queueRender();
+});
+outputCustomEl.addEventListener("input", queueRender);
+outputCustomEl.addEventListener("change", queueRender);
+logoFileEl.addEventListener("change", handleLogoFile);
+el("logo-remove").addEventListener("click", removeLogo);
+el("landing-download").addEventListener("click", downloadLanding);
+el("landing-preview").addEventListener("click", previewLanding);
+el("clear").addEventListener("click", () => {
+  if (inputTimer !== null) clearTimeout(inputTimer);
+  inputTimer = null;
+  for (const input of document.querySelectorAll(".type-form input, .type-form textarea")) {
+    input.value = "";
+  }
+  const landingColor = document.querySelector('[data-field="landingAccent"]');
+  if (landingColor) landingColor.value = "#167b62";
+  for (const input of document.querySelectorAll(".type-form select")) {
+    input.selectedIndex = 0;
+  }
+  el("qr-title").value = "";
+  el("qr-note").value = "";
+  el("caption-custom").value = "";
+  el("caption-mode").value = "scan";
+  shapeEl.value = "square";
+  eyeStyleEl.value = "square";
+  outputSizeEl.value = "1024";
+  outputCustomEl.value = "1024";
+  showCustomOutputSize();
+  wifiOptInEl.checked = false;
+  wifiPrintFields.hidden = true;
+  wifiPrintSsid.value = "";
+  wifiPrintPassword.value = "";
+  removeLogo();
+  showCaptionCustom();
+  kindEl.value = "url";
+  switchType();
+});
+svgButton.addEventListener("click", downloadSVG);
+pngButton.addEventListener("click", downloadPNG);
+setLanguage(languageEl.value);
+switchType();
+showCaptionCustom();
+showCustomOutputSize();
+translateDom(document.body);

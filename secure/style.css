@@ -1,0 +1,94 @@
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e6edf5;background:#0b111c;color-scheme:dark}
+body{margin:0;min-height:100vh}
+.container{max-width:1240px;margin:0 auto;padding:28px 22px}
+.head{margin-bottom:24px}
+.brand{font-size:23px;letter-spacing:.06em;font-weight:800}
+.brand span{font-size:11px;letter-spacing:.1em;color:#9ce4c8;border:1px solid #277b67;border-radius:30px;padding:5px 9px;vertical-align:middle;margin-left:10px}
+.head p{color:#91a2b9;margin:10px 0 0;line-height:1.5}
+.grid{display:grid;grid-template-columns:minmax(0,1.16fr) minmax(360px,1fr);gap:22px;align-items:start}
+.panel{border:1px solid #29374b;border-radius:16px;background:#141d2c;padding:25px;min-width:0}
+h1,h2{margin:0 0 22px;font-size:23px}h2{font-size:20px}
+label{display:block;font-size:13px;color:#cbd7e6;font-weight:600;margin:0 0 12px}
+textarea,select,input{font:inherit}
+textarea,select,input:not([type=color]){display:block;width:100%;border:1px solid #40506a;border-radius:9px;background:#0d1422;color:#f4f7fb;margin-top:7px;line-height:1.4;min-width:0}
+textarea{padding:12px;resize:vertical;min-height:74px}
+input:not([type=color]){height:43px;padding:9px 11px}
+select{min-height:43px;padding:8px 10px}
+input[type=color]{height:43px;width:100%;padding:4px;border:1px solid #40506a;border-radius:9px;background:#0d1422}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid #62c6a6;outline-offset:2px}
+input::placeholder,textarea::placeholder{color:#74839a}
+.type-select{border-color:#398e77;font-weight:700;font-size:15px;background:#112a2a}
+.form-stack{border:1px solid #2a3b52;background:#101a2a;border-radius:12px;padding:18px 17px 7px;margin:17px 0 24px}
+.type-form{min-height:85px}
+.fields{display:grid;gap:14px}.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.settings-title{font-size:14px;font-weight:750;color:#e0eaf7;border-bottom:1px solid #2e3a4e;margin:5px 0 16px;padding:0 0 10px}
+.controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.hint{font-size:12px;line-height:1.65;color:#91a2b9;margin:9px 0 14px}
+.warning{color:#ffcc8d}
+.privacy-actions{display:flex;gap:15px;justify-content:space-between;align-items:center;border-top:1px solid #2e3a4e;padding-top:16px;margin-top:12px}
+.clear-button{background:transparent;color:#d1e7f0;border:1px solid #59718d;padding:8px 12px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.clear-button:hover{background:#253249}
+.preview-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.local-chip{font-size:10px;white-space:nowrap;color:#91d6b9;border:1px solid #2e8466;border-radius:20px;padding:5px 8px}
+.canvas{background:#e5e7eb;border-radius:13px;min-height:360px;display:flex;align-items:center;justify-content:center;padding:20px}
+#qr{max-width:100%;height:auto;display:none;background:white}
+#empty{color:#4b5563;font-size:14px;text-align:center}
+#status{min-height:24px;font-size:13px;color:#b5e3d4;line-height:1.5;text-align:left;margin-top:15px}
+#status.error{color:#fda4af}
+.actions{display:flex;gap:10px}
+.actions button{flex:1;background:#167b62;color:#fff;border:none;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer}
+.actions button:hover:not(:disabled){background:#1b9877}
+.actions button:disabled{opacity:.45;cursor:not-allowed}
+footer{margin-top:26px;text-align:center;color:#8293aa;font-size:12px;line-height:1.7}
+@media(max-width:870px){.grid{grid-template-columns:1fr}.preview-panel{order:2}}
+@media(max-width:560px){.container{padding:18px 11px}.panel{padding:17px}.fields.two,.controls{grid-template-columns:1fr}.privacy-actions{align-items:start;flex-direction:column}.canvas{min-height:270px}.brand{font-size:19px}}
+
+/* Local-only QR logo, caption, heading and contact text settings */
+.branding-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:10px 0 14px}
+.brand-input-wrap,.brand-copy-wrap{background:#101a2a;border:1px solid #2a3b52;border-radius:12px;padding:17px 14px 10px;min-width:0}
+.brand-input-wrap>label,.brand-copy-wrap>label{display:block}
+.brand-input-wrap input[type=file]{width:100%;padding:9px;height:auto;min-height:42px;background:#0d1422;border:1px solid #40506a;color:#d5e2f2;font-size:12px}
+.brand-input-wrap input[type=file]::file-selector-button{border:0;border-radius:7px;background:#2a6258;color:white;padding:7px 10px;margin-right:8px;cursor:pointer}
+.brand-actions{display:flex;align-items:end;gap:12px;margin:14px 0}
+.brand-actions>label{flex:1;margin-bottom:0;min-width:0}
+.brand-actions>button{font-size:12px;line-height:1.2;padding:10px 12px}
+.brand-actions button:disabled{opacity:.4;cursor:not-allowed}
+.brand-copy-wrap label{margin-bottom:14px}
+.branding-grid .hint{margin-bottom:0}
+@media(max-width:800px){.branding-grid{grid-template-columns:1fr}}
+
+/* Opt-in printed Wi-Fi credentials: visible on exported QR and readable in browser. */
+.wifi-print-box{border:1px solid #916a2e;background:#281e15;border-radius:11px;padding:14px 15px;margin:15px 0}
+.wifi-print-switch{display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin:0}
+.wifi-print-switch input[type=checkbox]{flex:none;width:19px;height:19px;margin:2px 0 0;accent-color:#47b992}
+.wifi-print-switch span{min-width:0}
+.wifi-print-switch strong{display:block;font-size:14px;color:#f8edd4;line-height:1.45}
+.wifi-print-switch small{display:block;font-size:12px;color:#d0b78d;font-weight:400;margin-top:4px;line-height:1.55}
+.wifi-print-box .hint{margin:10px 0 0}
+.wifi-credential-preview{background:#182b2a;border:1px solid #387e68;border-radius:12px;text-align:left;padding:16px;margin-top:15px}
+.wifi-credential-preview>strong{color:#a8f1cf;font-size:14px;display:block;margin-bottom:12px}
+.wifi-credential-preview>div{margin-top:9px}
+.wifi-credential-preview span{display:block;font-size:12px;color:#9ac2b1}
+.wifi-credential-preview code{display:block;padding:8px 10px;margin-top:5px;background:#0b1817;border-radius:7px;color:#f3f7ff;font-size:15px;font-family:ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+.wifi-credential-preview p{margin:12px 0 0;font-size:11px;line-height:1.5;color:#b8d0c7}
+
+/* Editable printable Wi-Fi information, independent of QR payload. */
+.wifi-print-fields{padding:14px 0 0;border-top:1px solid #6e512a;margin-top:13px}
+.wifi-print-fields label{color:#f0ddbc;font-weight:600;margin-bottom:14px}
+.wifi-print-fields input{background:#1b1713!important;border:1px solid #755c38!important;color:#f9f5ec!important}
+.wifi-print-fields .hint{color:#d7c5a8}
+
+/* QR shape, eye and output size controls */
+.size-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;gap:15px;margin:13px 0}
+.size-controls>div{min-width:0}
+.dimension-note{padding:9px 11px;border:1px solid #31554f;background:#102823;border-radius:8px;color:#b7e5d5;font-size:12px;line-height:1.6;text-align:left;margin:13px 0 4px}
+@media(max-width:560px){.size-controls{grid-template-columns:1fr}}
+
+/* VI / EN switch: local translations only, no external assets */
+.head-row{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.language-picker{display:flex;align-items:center;gap:10px}
+.language-picker label{font-size:12px;color:#b6d6ce;white-space:nowrap;margin:0}
+.language-picker select{min-width:140px;width:auto;margin:0;background:#172a29;border-color:#498b78;color:#f2fbf8;font-weight:650;cursor:pointer}
+@media(max-width:560px){.head-row{align-items:stretch;flex-direction:column}.language-picker{justify-content:flex-start}}

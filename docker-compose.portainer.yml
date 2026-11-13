@@ -1,18 +1,18 @@
-# qrframe fork – 1 lightweight Nginx container for internal LAN.
-# Host IP is a default from previous configuration, NOT confirmed live.
-# Override QRFRAME_LAN_IP and QRFRAME_LAN_PORT in Portainer if required.
+# Private LAN only. Port is bound to a specific host IP; the LAN firewall MUST
+# restrict clients, and host DOCKER-USER/Proxmox firewall must deny egress.
+# A private Docker bridge separates other stacks but does NOT deny internet access.
 services:
   qrframe:
     build:
       context: .
       dockerfile: Dockerfile
-    image: qrframe-hoangthang:lan
+    image: qrframe-hoangthang:secure-lan
     container_name: qrframe-lan
     restart: unless-stopped
-
     ports:
       - "${QRFRAME_LAN_IP:-192.168.20.194}:${QRFRAME_LAN_PORT:-18890}:18090"
-
+    networks:
+      - qrframe_app_net
     read_only: true
     tmpfs:
       - /tmp:rw,nosuid,noexec,size=32m
@@ -20,10 +20,15 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    pids_limit: 100
-
+    pids_limit: 64
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.50
     logging:
       driver: local
       options:
         max-size: "5m"
         max-file: "2"
+networks:
+  qrframe_app_net:
+    driver: bridge
