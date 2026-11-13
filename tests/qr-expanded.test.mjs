@@ -14,7 +14,7 @@ test("VietQR amount and note with CRC integrity", () => {
   assert.match(p,/385[0-9]0010A000000727/);
   assert.match(p,/5406150000/);
   assert.match(p,/5303704/);
-  assert.match(p,/620[0-9]0810THANH TOAN/);
+  assert.match(p,/62140810THANH TOAN/);
   assert.equal(p.slice(-4),crc16Emv(p.slice(0,-4)));
   assert.throws(()=>buildPayload("vietqr",{bankBin:"000",bankAccount:"123456"}));
   assert.throws(()=>buildPayload("vietqr",{bankBin:"970436",bankAccount:"1abc"}));
