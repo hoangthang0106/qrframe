@@ -17,13 +17,11 @@ jobs:
           set -eu
           ! grep -RniE 'fetch[[:space:]]*\(|XMLHttpRequest|sendBeacon|WebSocket|importScripts|eval[[:space:]]*\(|new[[:space:]]+Function[[:space:]]*\(' secure/
           ! grep -RniE 'https://esm.sh|https://upload.wikimedia|google-analytics|googletagmanager|facebook.net' secure/
-      - name: Unit-test all QR input types
-        run: node --check secure/app.js
-          node --check secure/payload.js
-          node --check secure/extra-payload.js
-          node --check secure/extra-ui.js
-          node --check secure/landing.js
-          node --check secure/vietqr.js
+      - name: Syntax-check and unit-test all QR input types and both languages
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in secure/*.js; do node --check "$file"; done
           node --test tests/*.test.mjs
       - name: Build the secure container
         run: docker build --pull -t qrframe-offline:ci .

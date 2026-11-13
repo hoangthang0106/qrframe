@@ -3,6 +3,7 @@ import { ByteEncoder, generateWithEncoder } from "furious-qr";
 import { buildPayload } from "./payload.js";
 import { registerExtraForms } from "./extra-ui.js";
 import { buildLandingHtml } from "./landing.js";
+import { getLanguage, setLanguage, translateDom } from "./i18n.js";
 import { brandLayout, logoGeometry, rasterizeLogo, effectiveCaption, readableTextSize, singleLine, wifiCredentialCard } from "./branding.js";
 import { BODY_STYLES, EYE_STYLES, normalizeStyle, isFinderCell, finderOrigins, modulePrimitive, finderPrimitives,
   paintSvgPrimitive, paintCanvasPrimitive, outputWidth, outputDimensions } from "./qr-style.js";
@@ -27,6 +28,7 @@ const backgroundEl = el("bg");
 const preview = el("qr");
 const empty = el("empty");
 const statusEl = el("status");
+const languageEl = el("language");
 const svgButton = el("svg");
 const pngButton = el("png");
 let current = null;
@@ -66,6 +68,7 @@ function showCaptionCustom() {
 }
 function showLogoStatus(message) {
   el("logo-status").textContent = message;
+  translateDom(el("logo-status"));
   el("logo-remove").disabled = !logoState;
   el("ecl").disabled = Boolean(logoState);
 }
@@ -99,6 +102,7 @@ function removeLogo() {
 
 function setStatus(message, error = false) {
   statusEl.textContent = message;
+  translateDom(statusEl);
   statusEl.classList.toggle("error", error);
 }
 
@@ -216,7 +220,7 @@ function render() {
     const layout = brandLayout(fullSide, brandOptions());
     const wifiCard = kind === "wifi" && wifiOptInEl.checked
       ? wifiCredentialCard(layout.totalHeight, fullSide,
-          wifiPrintSsid.value, wifiPrintPassword.value)
+          wifiPrintSsid.value, wifiPrintPassword.value, getLanguage())
       : null;
     const fullHeight = wifiCard ? wifiCard.totalHeight : layout.totalHeight;
     const exportDims = outputDimensions(chosenWidth, fullSide, fullHeight);
@@ -270,7 +274,7 @@ function render() {
         fragment.appendChild(textNode);
       }
       if (wifiCard.ssidLines.length) {
-        wifiLine("TÊN WI-FI (SSID)", wifiCard.ssidLabelY, 1.25, true);
+        wifiLine(wifiCard.ssidLabel, wifiCard.ssidLabelY, 1.25, true);
         wifiCard.ssidLines.forEach((line, index) =>
           wifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
       }
@@ -290,6 +294,7 @@ function render() {
     el("output-dimensions").textContent = "Ảnh xuất: " + exportDims.width +
       " × " + exportDims.height + " px (PNG / SVG)." +
       (fullHeight > fullSide ? " Chiều cao tăng để chứa chữ hoặc thông tin dưới QR." : "");
+    translateDom(el("output-dimensions"));
     const manual = el("wifi-credential-preview");
     manual.hidden = !wifiCard;
     el("wifi-ssid-preview").textContent = wifiCard ? wifiPrintSsid.value : "";
@@ -392,7 +397,7 @@ function downloadPNG() {
       ctx.fillText(value, fullSide * unit / 2, y * unit, (fullSide - 4) * unit);
     }
     if (wifiCard.ssidLines.length) {
-      drawWifiLine("TÊN WI-FI (SSID)", wifiCard.ssidLabelY, 1.25, true);
+      drawWifiLine(wifiCard.ssidLabel, wifiCard.ssidLabelY, 1.25, true);
       wifiCard.ssidLines.forEach((line, index) =>
         drawWifiLine(line, wifiCard.ssidYs[index], 1.85, true, true));
     }
@@ -411,19 +416,21 @@ function updateLandingTools() {
   const preview = el("landing-preview");
   if (!active) { dl.disabled = true; preview.disabled = true; return; }
   try {
-    buildLandingHtml(getData());
+    buildLandingHtml(getData(), getLanguage());
     dl.disabled = false;
     preview.disabled = false;
     el("landing-notice").textContent =
       "Có thể xuất HTML ngay. QR chỉ hoạt động sau khi đăng file lên web server và nhập URL bên trên.";
+    translateDom(el("landing-notice"));
   } catch (err) {
     dl.disabled = true;
     preview.disabled = true;
     el("landing-notice").textContent = err instanceof Error ? err.message : "Chưa đủ thông tin Landing Page.";
+    translateDom(el("landing-notice"));
   }
 }
 function landingBlob() {
-  return new Blob([buildLandingHtml(getData())], { type: "text/html;charset=utf-8" });
+  return new Blob([buildLandingHtml(getData(), getLanguage())], { type: "text/html;charset=utf-8" });
 }
 function downloadLanding() {
   try { download(landingBlob(), "landing-page-noi-bo.html"); }
@@ -455,6 +462,12 @@ for (const input of document.querySelectorAll(".type-form input, .type-form text
   });
 }
 kindEl.addEventListener("change", switchType);
+languageEl.addEventListener("change", () => {
+  setLanguage(languageEl.value);
+  translateDom(document.body);
+  updateLandingTools();
+  render();
+});
 wifiOptInEl.addEventListener("change", () => {
   wifiPrintFields.hidden = !wifiOptInEl.checked;
   if (!wifiOptInEl.checked) {
@@ -514,6 +527,8 @@ el("clear").addEventListener("click", () => {
 });
 svgButton.addEventListener("click", downloadSVG);
 pngButton.addEventListener("click", downloadPNG);
+setLanguage(languageEl.value);
 switchType();
 showCaptionCustom();
 showCustomOutputSize();
+translateDom(document.body);

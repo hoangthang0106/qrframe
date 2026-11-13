@@ -112,7 +112,7 @@ export function readableTextSize(text, side, preferred = 2.0) {
 
 // Manual, opt-in printed Wi-Fi information, kept distinct from encoded QR credentials.
 // No automatic copying. Preserve every typed character, including whitespace.
-export function wifiCredentialCard(baseHeight, side, displaySsid, displayPassword) {
+export function wifiCredentialCard(baseHeight, side, displaySsid, displayPassword, locale = "vi") {
   const split = (value, limit = 24) => {
     const chars = Array.from(String(value ?? ""));
     const rows = [];
@@ -139,8 +139,11 @@ export function wifiCredentialCard(baseHeight, side, displaySsid, displayPasswor
     for (const line of passwordLines) { passwordYs.push(cursor); cursor += lineHeight; }
   }
   return {
+    ssidLabel: locale === "en" ? "WI-FI NAME (SSID)" : "TÊN WI-FI (SSID)",
     ssidLabelY, ssidLines, ssidYs,
-    passwordLabel: passwordLines.length > 1 ? "THÔNG TIN (NỐI LIỀN CÁC DÒNG)" : "THÔNG TIN / MẬT KHẨU",
+    passwordLabel: locale === "en"
+      ? (passwordLines.length > 1 ? "DETAILS (JOIN LINES WITHOUT SPACES)" : "DETAILS / PASSWORD")
+      : (passwordLines.length > 1 ? "THÔNG TIN (NỐI LIỀN CÁC DÒNG)" : "THÔNG TIN / MẬT KHẨU"),
     passwordLabelY, passwordLines, passwordYs,
     separatorY: baseHeight + 1.35,
     totalHeight: cursor + 0.6, side

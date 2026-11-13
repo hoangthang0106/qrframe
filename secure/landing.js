@@ -12,7 +12,13 @@ const templates = Object.freeze({
   event:"Thông tin sự kiện",portfolio:"Portfolio",contact:"Liên hệ"
 });
 
-export function buildLandingHtml(data = {}) {
+const englishTemplates = Object.freeze({
+  links: "Featured links", business: "Business profile",
+  menu: "Menu", product: "Products & services",
+  event: "Event information", portfolio: "Portfolio", contact: "Contact"
+});
+export function buildLandingHtml(data = {}, locale = "vi") {
+  const english = locale === "en";
   const template = txt(data.landingTemplate, 30) || "links";
   if (!Object.hasOwn(templates, template)) throw new Error("Mẫu landing page không hỗ trợ.");
   const title = txt(data.landingTitle, 100);
@@ -36,19 +42,19 @@ export function buildLandingHtml(data = {}) {
   if (phone && !/^\+?[0-9()\s.-]{7,28}$/.test(phone)) throw new Error("Số điện thoại landing page không hợp lệ.");
   const email = txt(data.landingEmail, 200);
   if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) throw new Error("Email landing page không hợp lệ.");
-  const label = templates[template];
+  const label = english ? englishTemplates[template] : templates[template];
 
   const listMarkup = items.length
     ? '<section class="items"><h2>' + esc(label) + '</h2><ul>' +
       items.map((it) => "<li>" + esc(it) + "</li>").join("") + "</ul></section>"
     : "";
   const buttonMarkup = buttons.length
-    ? '<nav class="links" aria-label="Liên kết">' +
+    ? '<nav class="links" aria-label="' + (english ? "Links" : "Liên kết") + '">' +
       buttons.map((b) => '<a class="button" href="' + esc(b.url) +
       '" target="_blank" rel="noopener noreferrer">' + esc(b.name) + '</a>').join("") + "</nav>"
     : "";
   const contactMarkup = phone || email || address
-    ? '<section class="contacts"><h2>Liên hệ</h2>' +
+    ? '<section class="contacts"><h2>' + (english ? "Contact" : "Liên hệ") + '</h2>' +
       (phone ? '<a href="tel:' + esc(phone.replace(/[()\s.-]/g, "")) + '">☎ ' + esc(phone) + '</a>' : "") +
       (email ? '<a href="mailto:' + esc(email) + '">✉ ' + esc(email) + '</a>' : "") +
       (address ? '<p>⌖ ' + para(address) + '</p>' : "") + "</section>"
@@ -76,7 +82,7 @@ export function buildLandingHtml(data = {}) {
     "footer{text-align:center;color:#7c90a8;margin:36px 0 15px;font-size:12px}"
   ].join("\n");
   return [
-    "<!doctype html><html lang=\"vi\"><head>",
+    '<!doctype html><html lang="' + (english ? "en" : "vi") + '"><head>',
     '<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">',
     '<meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="no-referrer">',
     '<meta http-equiv="Content-Security-Policy" content="' + esc(policy) + '">',
@@ -87,7 +93,9 @@ export function buildLandingHtml(data = {}) {
       (subtitle ? '<p class="subtitle">' + para(subtitle) + "</p>" : "") + "</header>",
     description ? '<section class="description">' + para(description) + "</section>" : "",
     buttonMarkup,listMarkup,contactMarkup,
-    "<footer>Trang tĩnh — Không analytics, cookie hoặc script. Chỉ kết nối ra ngoài khi người đọc tự mở liên kết.</footer>",
+    "<footer>" + (english
+      ? "Static page — No analytics, cookies or scripts. External links open only when you select them."
+      : "Trang tĩnh — Không analytics, cookie hoặc script. Chỉ kết nối ra ngoài khi người đọc tự mở liên kết.") + "</footer>",
     "</main></body></html>"
   ].join("");
 }
